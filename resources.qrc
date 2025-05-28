@@ -1,0 +1,20 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>icons/move.png</file>
+    <file>icons/move-left.png</file>
+    <file>icons/move-right.png</file>
+    <file>icons/play.png</file>
+    <file>icons/play-next.png</file>
+    <file>icons/play-previous.png</file>
+    <file>icons/qloudFlow-logo.png</file>
+    <file>icons/repeat.png</file>
+    <file>icons/rewind-back.png</file>
+    <file>icons/rewind-forward.png</file>
+    <file>icons/views.png</file>
+    <file>icons/delete-clip.png</file>
+    <file>icons/fullscreen-enter.png</file>
+    <file>icons/stop.png</file>
+    <file>icons/settings.png</file>
+    <file>icons/pause.png</file>
+  </qresource>
+</RCC>
