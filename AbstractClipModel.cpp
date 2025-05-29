@@ -1,11 +1,10 @@
 #include "AbstractClipModel.h"
 
-AbstractClipModel::AbstractClipModel(int start, int end, const QString& type, QObject* parent)
+AbstractClipModel::AbstractClipModel(int start,const QString& type, QObject* parent)
 : QObject(parent),
 m_type(type),
 m_start(start),
-m_end(end), 
-
+m_end(start+100),
 m_clipPropertyWidget(nullptr),
 m_standardPropertyWidget(nullptr)
 {
@@ -35,7 +34,7 @@ int AbstractClipModel::start() const { return m_start; }
 int AbstractClipModel::end() const { return m_end; }
 QString AbstractClipModel::type() const { return m_type; }
 int AbstractClipModel::length() const { return m_end - m_start; }
-int AbstractClipModel::trackIndex() const { return m_trackIndex; }
+// int AbstractClipModel::trackIndex() const { return m_trackIndex; }
 bool AbstractClipModel::isResizable() const { return RESIZEABLE; }
 bool AbstractClipModel::isEmbedWidget() const { return EMBEDWIDGET; }
 bool AbstractClipModel::isShowBorder() const { return SHOWBORDER; }
@@ -61,7 +60,7 @@ void AbstractClipModel::setStart(int start) {
             m_start = start;
             m_end = m_start + length;
             emit timelinePositionChanged(m_start);
-            emit lengthChanged();
+            emit lengthChanged(m_end);
         }
 
     }
@@ -71,18 +70,18 @@ void AbstractClipModel::setEnd(int end) {
         if(RESIZEABLE){
             m_end = end;
 
-            emit lengthChanged();
+            emit lengthChanged(m_end);
         }else{
             auto length = this->length();
             m_end = end;
             m_start = m_end - length;
-            emit lengthChanged();
+            emit lengthChanged(m_end);
             emit timelinePositionChanged(m_start);
         }
 
     }
 }
-void AbstractClipModel::setTrackIndex(int index) { m_trackIndex = index; }
+// void AbstractClipModel::setTrackIndex(int index) { m_trackIndex = index; }
 void AbstractClipModel::setResizable(bool resizable) { RESIZEABLE = resizable; }
 void AbstractClipModel::setEmbedWidget(bool embedWidget) { 
     if (EMBEDWIDGET != embedWidget) {
@@ -96,7 +95,6 @@ QJsonObject AbstractClipModel::save() const {
     clipJson["start"] = m_start;
     clipJson["end"] = m_end;
     clipJson["type"] = m_type;
-    clipJson["track"] = m_trackIndex;
     clipJson["ID"]=m_id;
     return clipJson;
 }
@@ -105,7 +103,6 @@ void AbstractClipModel::load(const QJsonObject& json) {
     m_start = json["start"].toInt();
     m_end = json["end"].toInt();
     m_type = json["type"].toString();
-    m_trackIndex = json["track"].toInt();
     m_id = json["ID"].toInt();
 }
 

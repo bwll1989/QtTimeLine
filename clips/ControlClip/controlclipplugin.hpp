@@ -1,12 +1,12 @@
-#ifndef VIDEOCLIPPLUGIN_HPP
-#define VIDEOCLIPPLUGIN_HPP
+#ifndef CONTROLCLIPPLUGIN_HPP
+#define CONTROLCLIPPLUGIN_HPP
 
 #include <QObject>
 #include "../../AbstractClipInterface.h"
 #include "../../AbstractClipModel.h"
-#include "videoclipmodel.hpp"
+#include "controlclipmodel.hpp"
 
-class VideoClipPlugin : public QObject, public ClipPlugInterface
+class ControlClipPlugin : public QObject, public ClipPlugInterface
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "com.timeline.ClipPlugInterface")
@@ -14,12 +14,12 @@ class VideoClipPlugin : public QObject, public ClipPlugInterface
 
 public:
     QString clipType() const override {
-        return "Video";
+        return "Control";
     }
 
     AbstractClipModel* createModel(int start) override {
-        return new VideoClipModel(start);
+        return new ControlClipModel(start);
     }
 };
 
-#endif // VIDEOCLIPPLUGIN_HPP
+#endif // ControlCLIPPLUGIN_HPP

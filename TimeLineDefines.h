@@ -23,12 +23,10 @@ enum TimelineRoles {
     ClipResizableRole, // 剪辑是否可调整大小
     ClipShowBorderRole, // 剪辑是否显示边框
     ClipModelRole,  // 用于获取完整的模型对象
-    TrackNumberRole, // 轨道编号
     TrackTypeRole, // 轨道类型
     TrackNameRole, // 轨道名称
     TrackModelRole, // 轨道模型
     TrackClipsCountRole, // 轨道剪辑数量
-    TrackLengthRole, // 轨道长度
     TrackClipsRole, // 轨道剪辑列表
     TimelineLengthRole, // 时间轴长度
    

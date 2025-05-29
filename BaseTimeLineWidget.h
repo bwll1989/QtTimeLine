@@ -40,7 +40,7 @@ class TIMELINEWIDGET_EXPORT BaseTimelineWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit BaseTimelineWidget(BaseTimelineModel* model=nullptr, QWidget *parent = nullptr);
+    explicit BaseTimelineWidget(BaseTimeLineModel* model=nullptr, QWidget *parent = nullptr);
     ~BaseTimelineWidget() override;
 
 public:
@@ -49,7 +49,7 @@ public:
     //分割器
     QSplitter* splitter = new QSplitter(Qt::Horizontal,this);
     //模型
-    BaseTimelineModel* model;
+    BaseTimeLineModel* model;
     //视图
     BaseTimelineView* view;
     //轨道列表

@@ -22,7 +22,7 @@
 class AbstractClipModel : public QObject {
     Q_OBJECT
 public:
-    explicit AbstractClipModel(int start, int end, const QString& type, QObject* parent = nullptr);
+    explicit AbstractClipModel(int start, const QString& type, QObject* parent = nullptr);
     /**
      * 析构函数
      */
@@ -56,7 +56,7 @@ public:
      * 轨道索引
      * @return int 轨道索引
      */
-    int trackIndex() const ;
+    // int trackIndex() const ;
     /**
      * 是否可调整大小
      * @return bool 是否可调整大小
@@ -89,7 +89,7 @@ public:
      * 设置轨道索引
      * @param int index 轨道索引
      */
-    virtual void setTrackIndex(int index);
+    // virtual void setTrackIndex(int index);
     /**
      * 设置是否可调整大小
      * @param bool resizable 是否可调整大小
@@ -152,13 +152,10 @@ Q_SIGNALS:
     /**
      * 数据变化信号
      */
-    void lengthChanged();  // 添加长度变化信号
-
+    void lengthChanged(qint64 length);  // 添加长度变化信号
     void filePathChanged(const QString& filePath);  // 添加文件路径变化信号
-
     void sizeChanged(QSize size);   //添加尺寸变化信号
     void posChanged(QPoint position); //位置变化信号
-
     void rotateChanged(int rotete); //旋转变化信号
     void timelinePositionChanged(int frame); //时间轴上位置变化信号，即开始时间
     void videoDataUpdate() const; //视频数据更新
@@ -173,7 +170,7 @@ protected:
     // 类型
     QString m_type;
     // 轨道索引
-    int m_trackIndex;
+    // int m_trackIndex;
     // 是否可调整大小
     bool RESIZEABLE;
     // 是否显示小部件
@@ -192,7 +189,6 @@ protected:
     QLineEdit* m_startTimeCodeLineEdit;
     //结束时间码
     QLineEdit* m_endTimeCodeLineEdit;
-
     // 代理窗口
     QWidget* m_clipPropertyWidget;
     /**

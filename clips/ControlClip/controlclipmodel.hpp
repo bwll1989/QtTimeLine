@@ -1,23 +1,25 @@
-#ifndef VIDEOCLIPMODEL_H
-#define VIDEOCLIPMODEL_H
+#ifndef CONTROLCLIPMODEL_HPP
+#define CONTROLCLIPMODEL_HPP
 #include <QPushButton>
 #include "../../AbstractClipModel.h"
 #include <QJsonArray>
-class VideoClipModel : public AbstractClipModel {
+class ControlClipModel : public AbstractClipModel {
     Q_OBJECT
 public:
-VideoClipModel(int start): AbstractClipModel(start, "Video"),
+
+
+ControlClipModel(int start): AbstractClipModel(start, "Control"),
     m_editor(nullptr)
 {
     RESIZEABLE = true;
-    EMBEDWIDGET = true;
+    EMBEDWIDGET = false;
     SHOWBORDER = true;
    
     // 片段正常颜色
-    ClipColor=QColor("#CC0033");
+    ClipColor=QColor("#6a2c70");
 
 }
-virtual ~VideoClipModel() override =default;
+~ControlClipModel() override =default;
 // 重写保存和加载函数
 QJsonObject save() const override {
     QJsonObject json = AbstractClipModel::save();
@@ -31,7 +33,7 @@ void load(const QJsonObject& json) override {
 QVariant data(int role) const override {
     switch (role) {
         case TimelineRoles::ClipModelRole:
-            return QVariant::fromValue(static_cast<AbstractClipModel*>(const_cast<VideoClipModel*>(this)));
+            return QVariant::fromValue(static_cast<AbstractClipModel*>(const_cast<ControlClipModel*>(this)));
         default:
             return AbstractClipModel::data(role);
     }
@@ -40,7 +42,7 @@ QVariant data(int role) const override {
 
 QVariantMap currentData(int currentFrame) const override {
     // if(currentFrame >= m_start && currentFrame <= m_end){
-    //     const_cast<VideoClipModel*>(this)->Video();
+    //     const_cast<ControlClipModel*>(this)->Control();
     // }
     return QVariantMap();
 }
@@ -55,7 +57,7 @@ QWidget* clipPropertyWidget() override{
     auto* playLayout = new QVBoxLayout(playGroup);
     playLayout->setContentsMargins(0, 0, 0, 0);
     // 测试按钮
-    auto* sendButton = new QPushButton("测试发送", m_editor);
+    auto* sendButton = new QPushButton("control发送", m_editor);
 
     playLayout->addWidget(sendButton);
     mainLayout->addWidget(playGroup);

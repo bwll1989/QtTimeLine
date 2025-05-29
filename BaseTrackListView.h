@@ -19,7 +19,7 @@ class BaseTracklistView : public QAbstractItemView
 {
     Q_OBJECT
 public:
-    explicit BaseTracklistView(BaseTimelineModel *viemModel, QWidget *parent = nullptr);
+    explicit BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *parent = nullptr);
 
     ~BaseTracklistView() override=default;
     /**
@@ -50,11 +50,11 @@ signals:
      * @param int dx 水平滚动   
      * @param int dy 垂直滚动
      */
-    virtual void trackScrolled(int dx, int dy);
+    void trackScrolled(int dx, int dy);
     /**
      * 视图更新信号
      */
-    virtual void viewupdate();
+    void viewUpdate();
 
 public slots:
     /**
@@ -203,7 +203,7 @@ private:
     //悬停索引
     QModelIndex m_hoverIndex = QModelIndex();
     //模型
-    BaseTimelineModel *Model;
+    BaseTimeLineModel *Model;
 };
 
 #endif // TRACKLISTVIEW_HPP

@@ -36,7 +36,8 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     clips
-    clips/VideoClip
+        clips/ControlClip
+        clips/VideoClip
 )
 set(INCLUDES 
         AbstractClipModel.h
@@ -50,7 +51,6 @@ set(INCLUDES
         BaseTimeLineWidget.h
         BaseTrackDelegate.h
         BaseTrackListView.h
-        BaseTrackModel.h
 )
 # 源文件列表
 set(SOURCES
@@ -62,7 +62,6 @@ set(SOURCES
         BaseTimeLineWidget.cpp
         BaseTrackDelegate.cpp
         BaseTrackListView.cpp
-        BaseTrackModel.cpp
         resources.qrc
 )
 set(QRC_FILES
@@ -102,8 +101,8 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PRIVATE TIMELINEWIDGET_LIBRARY)
 
 # 添加插件子目录
+add_subdirectory(clips/ControlClip)
 add_subdirectory(clips/VideoClip)
-
 # 添加示例项目
 add_subdirectory(example) 
 

@@ -2,7 +2,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QtMath>
-BaseTimelineView::BaseTimelineView(BaseTimelineModel *viewModel, QWidget *parent)
+BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent)
         : Model(viewModel), QAbstractItemView{parent}
     {
         setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -50,12 +50,12 @@ BaseTimelineView::BaseTimelineView(BaseTimelineModel *viewModel, QWidget *parent
             Model->onSetPlayheadPos(Model->getPlayheadPos()+1);
         });
         // 当视频窗口关闭时，更新工具栏按钮状态
-
-        connect(Model, &BaseTimelineModel::S_trackAdd, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimelineModel::S_trackDelete, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimelineModel::S_trackMoved, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimelineModel::S_addClip, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimelineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model,&BaseTimeLineModel::S_clipGeometryChanged,this,&BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimeLineModel::S_trackAdd, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimeLineModel::S_trackDelete, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimeLineModel::S_trackMoved, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimeLineModel::S_addClip, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimeLineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
 
         installEventFilter(this);
 
@@ -441,7 +441,7 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
     selectionModel()->clearSelection();
     
     // 获取播放头位置   
-    int playheadPos = frameToPoint(((BaseTimelineModel*)model())->getPlayheadPos());
+    int playheadPos = frameToPoint(((BaseTimeLineModel*)model())->getPlayheadPos());
     // 获取播放头矩形
     QRect playheadHitBox(QPoint(playheadPos-3,rulerHeight),QPoint(playheadPos+2,viewport()->height()));
     // 获取播放头矩形2
@@ -562,7 +562,7 @@ void BaseTimelineView::dropEvent(QDropEvent *event)
     if(m_isDroppingMedia){
         m_lastDragPos = event->position().toPoint();
         QModelIndex trackIndex;
-        BaseTimelineModel* timelineModel = ((BaseTimelineModel*)model());
+        BaseTimeLineModel* timelineModel = ((BaseTimeLineModel*)model());
         QRect rullerRect(-m_scrollOffset.x(),0,viewport()->width() + m_scrollOffset.x(),rulerHeight);
         /* If above or on the ruler drop on the first track*/
         if(m_lastDragPos.y()<0 || rullerRect.contains(m_lastDragPos)){
@@ -595,7 +595,7 @@ void BaseTimelineView::dropEvent(QDropEvent *event)
       if (event->type() == QEvent::KeyPress) {
           QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
           QModelIndexList list = selectionModel()->selectedIndexes();
-          BaseTimelineModel* timelinemodel = (BaseTimelineModel*)model();
+          BaseTimeLineModel* timelinemodel = (BaseTimeLineModel*)model();
           if (watched == this) {
               switch (keyEvent->key()){
                   case Qt::Key_Right :

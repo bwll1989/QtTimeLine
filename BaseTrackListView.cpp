@@ -2,7 +2,7 @@
 #include <QDrag>
 #include <QMimeData>
 
-BaseTracklistView::BaseTracklistView(BaseTimelineModel *viemModel, QWidget *parent): Model(viemModel), QAbstractItemView{parent}{
+BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *parent): Model(viemModel), QAbstractItemView{parent}{
     setModel(Model);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -24,10 +24,10 @@ BaseTracklistView::BaseTracklistView(BaseTimelineModel *viemModel, QWidget *pare
     m_deleteTrackAction->setShortcut(QKeySequence(Qt::Key_Delete));
     QObject::connect(m_deleteTrackAction, &QAction::triggered, this, &BaseTracklistView::onDeleteTrack);
     //轨道变化后刷新显示
-    QObject::connect(Model, &BaseTimelineModel::S_trackAdd, this, &BaseTracklistView::onUpdateViewport);
-    QObject::connect(Model, &BaseTimelineModel::S_trackDelete, this, &BaseTracklistView::onUpdateViewport);
-    QObject::connect(Model, &BaseTimelineModel::S_trackMoved, this, &BaseTracklistView::onUpdateViewport);
-    QObject::connect(Model, &BaseTimelineModel::S_playheadMoved, this, &BaseTracklistView::onUpdateViewport);
+    QObject::connect(Model, &BaseTimeLineModel::S_trackAdd, this, &BaseTracklistView::onUpdateViewport);
+    QObject::connect(Model, &BaseTimeLineModel::S_trackDelete, this, &BaseTracklistView::onUpdateViewport);
+    QObject::connect(Model, &BaseTimeLineModel::S_trackMoved, this, &BaseTracklistView::onUpdateViewport);
+    QObject::connect(Model, &BaseTimeLineModel::S_playheadMoved, this, &BaseTracklistView::onUpdateViewport);
     setItemDelegate(new BaseTrackDelegate(this));
     setMouseTracking(true);
     m_scrollOffset = QPoint(0,0);
@@ -388,21 +388,19 @@ void BaseTracklistView::dropEvent(QDropEvent *event) {
         if (sourceRow != targetRow && targetRow >= 0 && sourceRow >= 0) {
             
             if (Model) {
-                // 关闭受影响的持久化编辑器
-                closePersistentEditor(Model->index(sourceRow, 0));
-                closePersistentEditor(Model->index(targetRow, 0));
+                for (int i = 0; i < Model->rowCount(); ++i) {
+                    // 关闭所有编辑器
+                    QModelIndex index = Model->index(i, 0);
+                    closePersistentEditor(index);
+                }
+
                 Model->onMoveTrack(sourceRow, targetRow);
                 // 清除选择和悬停状态
                 selectionModel()->clearSelection();
                 m_hoverIndex = QModelIndex();
-                // 重新打开受影响的持久化编辑器
-                openPersistentEditor(Model->index(sourceRow, 0));
-                openPersistentEditor(Model->index(targetRow, 0));
-                // 更新编辑器几何形状和视图
-                // updateEditorGeometries();
                 viewport()->update();
-
-                emit viewupdate();  // 发送信号
+                // 发送信号以通知tracklist和timelineview更新
+                emit viewUpdate();  // 发送信号
             }
         }
         event->acceptProposedAction();

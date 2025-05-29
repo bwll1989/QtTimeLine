@@ -4,7 +4,7 @@
 
 #include "BaseTimeLineWidget.h"
 
-BaseTimelineWidget::BaseTimelineWidget(BaseTimelineModel* model, QWidget *parent) : QWidget(parent), model(model) {
+BaseTimelineWidget::BaseTimelineWidget(BaseTimeLineModel* model, QWidget *parent) : QWidget(parent), model(model) {
     // 首先创建模型
     // model = new BaseTimelineModel();
     // 创建组件
@@ -14,7 +14,7 @@ BaseTimelineWidget::BaseTimelineWidget(BaseTimelineModel* model, QWidget *parent
     // 连接模型轨道变化到时间线更新视图
 //    connect(model, &BaseTimelineModel::S_trackCountChanged, view, &BaseTimelineView::onUpdateViewport);
     // 连接轨道列表更新到时间线更新视图
-    connect(tracklist, &BaseTracklistView::viewupdate, view, &BaseTimelineView::onUpdateViewport);
+    connect(tracklist, &BaseTracklistView::viewUpdate, view, &BaseTimelineView::onUpdateViewport);
     // 连接工具栏设置按钮到显示设置对话框
 
     connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);

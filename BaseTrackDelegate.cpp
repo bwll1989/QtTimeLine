@@ -41,8 +41,8 @@ QWidget *BaseTrackDelegate::createEditor(QWidget *parent, const QStyleOptionView
     lineEdit->setAlignment(Qt::AlignCenter);
     lineEdit->setStyleSheet("QLineEdit { background: rgba(255, 255, 255, 0); color: white; border: none; }");
     connect(lineEdit, &QLineEdit::textChanged, this, [this, index](const QString& text){
-        auto* track = static_cast<BaseTrackModel*>(index.internalPointer());
-        track->setName(text);
+        // 使用model()获取模型,然后通过setData更新数据
+        const_cast<QAbstractItemModel*>(index.model())->setData(index, text, TimelineRoles::TrackNameRole);
     });
     layout->addWidget(lineEdit);
     // 移动轨道按钮

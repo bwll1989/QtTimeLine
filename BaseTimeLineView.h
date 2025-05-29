@@ -21,7 +21,7 @@ class BaseTimelineView : public QAbstractItemView
 Q_OBJECT
 public:
     // 构造函数，初始化视图模型
-    explicit BaseTimelineView(BaseTimelineModel *viewModel, QWidget *parent = nullptr);
+    explicit BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent = nullptr);
     ~BaseTimelineView() override ;
     /**
      * 返回给定索引的可视矩形
@@ -282,7 +282,7 @@ private:
     // 当前缩放
     double currentScale = 1.0;
     // 时间线模型
-    BaseTimelineModel *Model;
+    BaseTimeLineModel *Model;
     /**
      * 获取索引的矩形
      * @param QModelIndex index 索引

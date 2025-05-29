@@ -11,6 +11,7 @@
 #include "QLabel"
 #include "BaseTimeLineModel.h"
 #include "TimeLineStyle.h"
+
 class BaseTrackDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
@@ -20,10 +21,6 @@ public:
      * @param QObject *parent 父窗口
      */
     explicit BaseTrackDelegate(QObject *parent = nullptr);
-
-
-    // QAbstractItemDelegate interface
-public:
     /**
      * 绘制
      * @param QPainter *painter 绘图器

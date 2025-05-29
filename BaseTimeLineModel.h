@@ -4,28 +4,41 @@
 #include <QAbstractItemModel>
 #include <unordered_set>
 #include <unordered_map>
-#include "BaseTrackModel.h"
 #include "AbstractClipModel.h"
 #include <string>
 #include <QMimeData>
 #include <QIODevice>
 #include <algorithm>
-#include <vector>
+#include <QList>
 #include <QJsonArray>
 #include "TimeLineDefines.h"
 #include "TimeLineStyle.h"
 #include <QFile>
 #include <QJsonDocument>
 #include "BasePluginLoader.h"
+struct TrackData {
+    QString type;
+    QString name;
+    // 修改前: QVector<std::unique_ptr<AbstractClipModel>> clips;
+    // 修改后: 使用 QList 替代 QVector
+    QList<AbstractClipModel*> clips;
+    QJsonObject save() const
+{
+    QJsonObject trackJson;
+    trackJson["type"] = type;
+    trackJson["trackName"] = name;
+    return trackJson;
+}
+};
 // TimelineModel类继承自QAbstractItemModel
-class BaseTimelineModel : public QAbstractItemModel
+class BaseTimeLineModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
     // 构造函数
-    BaseTimelineModel(QObject* parent = nullptr);
+    BaseTimeLineModel(QObject* parent = nullptr);
 
-    ~BaseTimelineModel();
+    ~BaseTimeLineModel();
     //获取当前播放位置
     virtual qint64 getPlayheadPos() const;
     /**
@@ -102,9 +115,9 @@ public:
     virtual int getTrackCount() const ;
     /**
      * 获取轨道
-     * @return QVector<BaseTrackModel*> 轨道
+     * @return QVector<TrackData> 轨道
      */
-    QVector<BaseTrackModel*> getTracks() const { return m_tracks; }
+    QList<TrackData*> getTracks() const { return m_tracks; }
     /**
      * 获取插件加载器
      * @return BasePluginLoader* 插件加载器
@@ -135,12 +148,13 @@ signals:
     //移动播放头信号
     void S_playheadMoved(int frame);
     //时间线长度变化信号
-    void S_timelineLengthChanged();
+    void S_LengthChanged(qint64 length);
     //添加片段信号
     void S_addClip();
     //删除片段信号
     void S_deleteClip();
-
+    //片段位置外形变化信号
+    void S_clipGeometryChanged();
 public slots:
     //开始播放槽函数
     virtual void onStartPlay();
@@ -149,19 +163,15 @@ public slots:
     //停止播放槽函数
     virtual void onStopPlay();
     //时间轴长度变化槽函数
-    virtual void onTimelineLengthChanged();
+    virtual void onUpdateTimeLineLength();
     //设置播放头位置槽函数
     virtual void onSetPlayheadPos(int newPlayheadPos);
     //通过轨道索引和开始帧添加片段
     virtual void onAddClip(int trackIndex,int startFrame);
-    //通过片段模型添加片段
-    virtual void onAddClip(AbstractClipModel* clip);
     //删除片段槽函数
     virtual void onDeleteClip(QModelIndex clipIndex);
     //通过类型添加轨道槽函数
     virtual void onAddTrack(const QString& type);
-    //通过片段模型添加轨道槽函数
-    virtual void onAddTrack(BaseTrackModel* track);
     //删除轨道槽函数
     virtual void onDeleteTrack(int trackIndex);
     //移动轨道槽函数
@@ -169,9 +179,9 @@ public slots:
 
 private:
     // 查找片段所在轨道
-    BaseTrackModel* findParentTrackOfClip(AbstractClipModel* clip) const ;
+    TrackData* findParentTrackOfClip(AbstractClipModel* clip) const ;
     // 查找轨道行
-    int findTrackRow(BaseTrackModel* track) const ;
+    int findTrackRow(TrackData* track) const ;
 
     // 时间显示格式，默认显示时间码
     TimedisplayFormat m_timeDisplayFormat = TimedisplayFormat::AbsoluteTimeFormat;
@@ -180,13 +190,17 @@ private:
     /**
      * 获取轨道
      * @param int index 轨道索引
-     * @return BaseTrackModel* 轨道
+     * @return TrackData 轨道
      */
-    QVector<BaseTrackModel*> m_tracks; // 轨道
+    // 修改前: QVector<std::unique_ptr<TrackData>> m_tracks;
+    // 修改后: 使用 QList 替代 QVector
+    QList<TrackData*> m_tracks;
     
     qint64 m_currentFrame = 0; // 当前帧
 
-    qint64 m_lenfthFrame = 0; // 总帧数
-};
+    qint64 m_lengthFrame = 0; // 总帧数
 
+    qint64 m_clipNextId=0;
+};
 #endif // TIMELINEMODEL_H
+

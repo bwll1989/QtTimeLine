@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    model = new BaseTimelineModel();
+    model = new BaseTimeLineModel();
     //给模型初始化插件加载器
     model->setPluginLoader(new BasePluginLoader());
 

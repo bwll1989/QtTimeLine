@@ -25,7 +25,7 @@ private slots:
     void onLoadScene();
 private:
     Ui::MainWindow *ui;
-    BaseTimelineModel* model;
+    BaseTimeLineModel* model;
     BaseTimelineWidget *timeline;
 };
 
