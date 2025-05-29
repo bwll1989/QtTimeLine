@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "timelinewidget.h"
+#include "BaseTimeLineWidget.h"
 #include "BaseTimeLineModel.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -26,7 +26,7 @@ private slots:
 private:
     Ui::MainWindow *ui;
     BaseTimelineModel* model;
-    TimelineWidget *timeline;
+    BaseTimelineWidget *timeline;
 };
 
 #endif // MAINWINDOW_H

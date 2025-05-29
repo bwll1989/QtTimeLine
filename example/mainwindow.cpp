@@ -1,8 +1,9 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "BaseTrackListView.h"
-#include "timelinewidget.h"
+#include "BaseTimeLineWidget.h"
 #include "BaseTimeLineModel.h"
+#include "BasePluginLoader.h"
 #include <QFileDialog>
 #include <QJsonDocument>
 #include <QMessageBox>
@@ -12,12 +13,15 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     model = new BaseTimelineModel();
-     timeline = new TimelineWidget(model);
-     ui->verticalLayout->addWidget(timeline);
-     connect(ui->actionsave_2, &QAction::triggered, this, &MainWindow::onSaveScene);
-   connect(ui->actionload, &QAction::triggered, this,&MainWindow::onLoadScene);
+    //给模型初始化插件加载器
+    model->setPluginLoader(new BasePluginLoader());
+
+    timeline = new BaseTimelineWidget(model);
+    ui->verticalLayout->addWidget(timeline);
+    connect(ui->actionsave_2, &QAction::triggered, this, &MainWindow::onSaveScene);
+    connect(ui->actionload, &QAction::triggered, this,&MainWindow::onLoadScene);
     // // 连接开始动作
-//    connect(ui->actionstart, &QAction::triggered, timeline, &TimelineWidget::start);
+//    connect(ui->actionstart, &QAction::triggered, timeline, &BaseTimelineWidget::start);
     ui->actionstart->setShortcut(QKeySequence(Qt::Key_Space));
 
     // // 连接视频播放器显示切换动作
@@ -25,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::onVideoPlayerActionToggled);
 
     // // 当视频窗口被关闭时，取消选中菜单项
-    // connect(timeline, &TimelineWidget::videoWindowClosed,
+    // connect(timeline, &BaseTimelineWidget::videoWindowClosed,
     //         [this]() {
     //             ui->actionShowVideoPlayer->setChecked(false);
     //         });

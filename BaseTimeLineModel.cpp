@@ -3,22 +3,7 @@
 
 BaseTimelineModel::BaseTimelineModel(QObject* parent) : QAbstractItemModel(parent), m_pluginLoader(nullptr)
 {
-    m_pluginLoader = new BasePluginLoader();
-    m_pluginLoader->loadPlugins();
-    // qRegisterMetaType<AbstractClipModel*>();
 
-    //轨道移动后更新当前帧数据
-    // connect(this, &BaseTimelineModel::S_trackMoved, this, [this](int oldindex,int newindex){
-    //     onCreateCurrentVideoData(this->getPlayheadPos());
-    // });
-    // //删除轨道后更新当前帧数据
-    // connect(this, &BaseTimelineModel::S_trackDelete, this, [this](){
-    //     onCreateCurrentVideoData(this->getPlayheadPos());
-    // });
-    // //删除片段后更新当前帧数据
-    // connect(this, &BaseTimelineModel::S_deleteClip, this, [this](){
-    //     onCreateCurrentVideoData(this->getPlayheadPos());
-    // });
 }
 // 获取播放头位置
 qint64 BaseTimelineModel::getPlayheadPos() const{
@@ -105,7 +90,7 @@ QVariant BaseTimelineModel::data(const QModelIndex &index, int role) const
     if (!index.isValid()) {
         switch (role) {
             case TimelineLengthRole:
-                return QVariant::fromValue(12345);
+                return QVariant::fromValue(m_lenfthFrame);
             default:
                 return QVariant();
         }
@@ -366,7 +351,6 @@ void BaseTimelineModel::load(const QJsonObject &modelJson) {
 
 
 
-    emit S_timelineUpdated();
 }
 // 计算时间线长度
 void BaseTimelineModel::onTimelineLengthChanged()
@@ -376,7 +360,8 @@ void BaseTimelineModel::onTimelineLengthChanged()
     for(BaseTrackModel* track : m_tracks){
         max = qMax(max,track->getTrackLength());
     }
-
+    m_lenfthFrame = max;
+    qDebug()<<"onTimelineLengthChanged"<<m_lenfthFrame;
 }
 
 void BaseTimelineModel::onDeleteTrack(int trackIndex) {
@@ -492,7 +477,11 @@ int BaseTimelineModel::findTrackRow(BaseTrackModel* track) const {
 }
 
 void BaseTimelineModel::setPluginLoader(BasePluginLoader* loader) {
+    if (m_pluginLoader) {
+        delete m_pluginLoader;
+    }
     m_pluginLoader = loader;
+    m_pluginLoader->loadPlugins();
 }
 
 BasePluginLoader* BaseTimelineModel::getPluginLoader() const {

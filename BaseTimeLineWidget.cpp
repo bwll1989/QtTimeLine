@@ -2,9 +2,9 @@
 // Created by bwll1 on 2024/5/27.
 //
 
-#include "timelinewidget.h"
+#include "BaseTimeLineWidget.h"
 
-TimelineWidget::TimelineWidget(BaseTimelineModel* model, QWidget *parent) : QWidget(parent), model(model) {
+BaseTimelineWidget::BaseTimelineWidget(BaseTimelineModel* model, QWidget *parent) : QWidget(parent), model(model) {
     // 首先创建模型
     // model = new BaseTimelineModel();
     // 创建组件
@@ -16,25 +16,26 @@ TimelineWidget::TimelineWidget(BaseTimelineModel* model, QWidget *parent) : QWid
     // 连接轨道列表更新到时间线更新视图
     connect(tracklist, &BaseTracklistView::viewupdate, view, &BaseTimelineView::onUpdateViewport);
     // 连接工具栏设置按钮到显示设置对话框
-    connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &TimelineWidget::showSettingsDialog);
+
+    connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
 }
 
-TimelineWidget::~TimelineWidget() =default;
+BaseTimelineWidget::~BaseTimelineWidget() =default;
 
-void TimelineWidget::showSettingsDialog()
+void BaseTimelineWidget::showSettingsDialog()
 {
 
 }
 
-QJsonObject TimelineWidget::save() {
+QJsonObject BaseTimelineWidget::save() {
     return model->save();
 }
 
-void TimelineWidget::load(const QJsonObject& json) {
+void BaseTimelineWidget::load(const QJsonObject& json) {
     model->load(json);
 }
 
-void TimelineWidget::createComponents() {
+void BaseTimelineWidget::createComponents() {
     // 创建工具栏
     view = new BaseTimelineView(model, this);
     tracklist = new BaseTracklistView(model, this);

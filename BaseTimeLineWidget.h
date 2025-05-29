@@ -2,8 +2,8 @@
 // Created by bwll1 on 2024/5/27.
 //
 
-#ifndef TIMELINEWIDGET_H
-#define TIMELINEWIDGET_H
+#ifndef BASETIMELINEWIDGET_H
+#define BASETIMELINEWIDGET_H
 #if defined(_MSC_VER) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #  define Q_DECL_EXPORT __declspec(dllexport)
 #  define Q_DECL_IMPORT __declspec(dllimport)
@@ -36,12 +36,12 @@
 #include <QGuiApplication>
 
 
-class TIMELINEWIDGET_EXPORT TimelineWidget : public QWidget {
+class TIMELINEWIDGET_EXPORT BaseTimelineWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit TimelineWidget(BaseTimelineModel* model=nullptr, QWidget *parent = nullptr);
-    ~TimelineWidget() override;
+    explicit BaseTimelineWidget(BaseTimelineModel* model=nullptr, QWidget *parent = nullptr);
+    ~BaseTimelineWidget() override;
 
 public:
     //主布局
@@ -65,28 +65,25 @@ public slots:
      * 保存
      * @return QJsonObject 保存的json对象
      */
-    QJsonObject save();
+    virtual QJsonObject save();
     /**
      * 加载
      * @param const QJsonObject& json 加载的json对象
      */
-    void load(const QJsonObject& json);
+    virtual void load(const QJsonObject& json);
     /**
      * 显示设置对话框
      */
-    void showSettingsDialog(); // Add new slot
+    virtual void showSettingsDialog(); // Add new slot
 
 
 private:
     /**
      * 创建组件
      */
-    void createComponents();
-    /**
-     * 设置对话框控件
-     */
-    class TimelineSettingsDialog* m_settingsDialog = nullptr;
+    virtual void createComponents();
+
 };
 
 
-#endif //TIMELINEV2_TIMEWIDGET_H
+#endif //TIMELINE_TIMEWIDGET_H

@@ -71,7 +71,7 @@ inline QColor rulerColour = QColor("#a7a7a7"); //刻度颜色
 
 inline int textoffset = 13; //文本偏移
 
-inline int baseTimeScale = 30; //基础时间刻度，用于计算缩放
+inline int baseTimeScale = 10; //基础时间刻度，用于计算缩放
 
 inline int fontSize = 25; //显示时间字体大小
 

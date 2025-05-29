@@ -27,7 +27,7 @@ public:
 
     ~BaseTimelineModel();
     //获取当前播放位置
-    qint64 getPlayheadPos() const;
+    virtual qint64 getPlayheadPos() const;
     /**
      * 获取索引
      * @param int row 行
@@ -35,32 +35,32 @@ public:
      * @param QModelIndex parent 父索引
      * @return QModelIndex 索引
      */
-    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
+    virtual QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     /**
      * 获取父索引
      * @param const QModelIndex &child 子索引
      * @return QModelIndex 父索引
      */
-    QModelIndex parent(const QModelIndex &child) const override;
+    virtual QModelIndex parent(const QModelIndex &child) const override;
     /**
      * 获取行数
      * @param const QModelIndex &parent 父索引
      * @return int 行数 
      */
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    virtual int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     /**
      * 获取列数
      * @param const QModelIndex &parent 父索引
      * @return int 列数
      */
-    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    virtual int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     /**
      * 获取数据
      * @param const QModelIndex &index 索引
      * @param int role 角色
      * @return QVariant 数据
      */
-    QVariant data(const QModelIndex &index, int role) const override;
+    virtual QVariant data(const QModelIndex &index, int role) const override;
     /**
      * 设置数据
      * @param const QModelIndex &index 索引
@@ -68,7 +68,7 @@ public:
      * @param int role 角色
      * @return bool 是否设置成功
      */
-    bool setData(const QModelIndex &index, const QVariant &value, int role) override;
+    virtual bool setData(const QModelIndex &index, const QVariant &value, int role) override;
     /**
      * 获取支持的拖放操作
      * @return Qt::DropActions 支持的拖放操作
@@ -84,22 +84,22 @@ public:
     /**
      * 清除
      */
-    void clear();
+    virtual void clear();
     /**
      * 保存模型
      * @return QJsonObject 保存的模型
      */
-    QJsonObject save() const;
+    virtual QJsonObject save() const;
     /**
      * 加载模型
      * @param const QJsonObject &modelJson 加载的模型
      */
-    void load(const QJsonObject &modelJson) ;
+    virtual void load(const QJsonObject &modelJson) ;
     /**
      * 获取轨道数量
      * @return int 轨道数量
      */
-    int getTrackCount() const ;
+    virtual int getTrackCount() const ;
     /**
      * 获取轨道
      * @return QVector<BaseTrackModel*> 轨道
@@ -123,10 +123,9 @@ public:
     void setTimeDisplayFormat(TimedisplayFormat val){
         m_timeDisplayFormat=val;
     }
-   
+    // 设置插件加载器
+    void setPluginLoader(BasePluginLoader* loader) ;
 signals:
-    //时间线更新信号
-    void S_timelineUpdated();
     //轨道移动信号
     void S_trackMoved(int oldIndex, int newIndex);
     //添加轨道信号
@@ -144,37 +143,36 @@ signals:
 
 public slots:
     //开始播放槽函数
-    void onStartPlay();
+    virtual void onStartPlay();
     //暂停播放槽函数
-    void onPausePlay();
+    virtual void onPausePlay();
     //停止播放槽函数
-    void onStopPlay();
+    virtual void onStopPlay();
     //时间轴长度变化槽函数
-    void onTimelineLengthChanged();
+    virtual void onTimelineLengthChanged();
     //设置播放头位置槽函数
-    void onSetPlayheadPos(int newPlayheadPos);
+    virtual void onSetPlayheadPos(int newPlayheadPos);
     //通过轨道索引和开始帧添加片段
-    void onAddClip(int trackIndex,int startFrame);
+    virtual void onAddClip(int trackIndex,int startFrame);
     //通过片段模型添加片段
-    void onAddClip(AbstractClipModel* clip);
+    virtual void onAddClip(AbstractClipModel* clip);
     //删除片段槽函数
-    void onDeleteClip(QModelIndex clipIndex);
+    virtual void onDeleteClip(QModelIndex clipIndex);
     //通过类型添加轨道槽函数
-    void onAddTrack(const QString& type);
+    virtual void onAddTrack(const QString& type);
     //通过片段模型添加轨道槽函数
-    void onAddTrack(BaseTrackModel* track);
+    virtual void onAddTrack(BaseTrackModel* track);
     //删除轨道槽函数
-    void onDeleteTrack(int trackIndex);
+    virtual void onDeleteTrack(int trackIndex);
     //移动轨道槽函数
-    void onMoveTrack(int sourceRow, int targetRow);
+    virtual void onMoveTrack(int sourceRow, int targetRow);
 
 private:
     // 查找片段所在轨道
     BaseTrackModel* findParentTrackOfClip(AbstractClipModel* clip) const ;
     // 查找轨道行
     int findTrackRow(BaseTrackModel* track) const ;
-    // 设置插件加载器
-    void setPluginLoader(BasePluginLoader* loader) ;
+
     // 时间显示格式，默认显示时间码
     TimedisplayFormat m_timeDisplayFormat = TimedisplayFormat::AbsoluteTimeFormat;
     //插件加载器
@@ -187,6 +185,8 @@ private:
     QVector<BaseTrackModel*> m_tracks; // 轨道
     
     qint64 m_currentFrame = 0; // 当前帧
+
+    qint64 m_lenfthFrame = 0; // 总帧数
 };
 
 #endif // TIMELINEMODEL_H

@@ -43,11 +43,19 @@ BaseTimelineView::BaseTimelineView(BaseTimelineModel *viewModel, QWidget *parent
         connect(toolbar, &BaseTimelineToolbar::pauseClicked, [this]() {
             Model->onPausePlay();
         });
+        connect(toolbar,&BaseTimelineToolbar::prevFrameClicked,[this](){
+           Model->onSetPlayheadPos(qMax(0,Model->getPlayheadPos()-1));
+        });
+        connect(toolbar,&BaseTimelineToolbar::nextFrameClicked,[this](){
+            Model->onSetPlayheadPos(Model->getPlayheadPos()+1);
+        });
         // 当视频窗口关闭时，更新工具栏按钮状态
+
         connect(Model, &BaseTimelineModel::S_trackAdd, this, &BaseTimelineView::onUpdateViewport);
         connect(Model, &BaseTimelineModel::S_trackDelete, this, &BaseTimelineView::onUpdateViewport);
         connect(Model, &BaseTimelineModel::S_trackMoved, this, &BaseTimelineView::onUpdateViewport);
         connect(Model, &BaseTimelineModel::S_addClip, this, &BaseTimelineView::onUpdateViewport);
+        connect(Model, &BaseTimelineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
 
         installEventFilter(this);
 
@@ -183,10 +191,7 @@ int BaseTimelineView::getTrackWdith() const
     return frameToPoint(timelineLength + 1);  // 否则返回基于时间轴长度的宽度
 }
 
-int BaseTimelineView::getPlayheadPos()
-{
-    return frameToPoint(((BaseTimelineModel*)model())->getPlayheadPos());
-}
+
 
 // 移动选定的剪辑
 void BaseTimelineView::moveSelectedClip(int dx, int dy, bool isMouse)
@@ -376,6 +381,7 @@ void BaseTimelineView::leaveEvent(QEvent *event)
 // 设置缩放比例
 void BaseTimelineView::setScale(double value)
 {
+
     // 保存当前焦点帧位置
     int focusFrame = Model->getPlayheadPos();
     
@@ -383,7 +389,7 @@ void BaseTimelineView::setScale(double value)
     int oldPointFocus = frameToPoint(focusFrame);
     // 设置新的缩放比例 (value 范围是 0-1)
     timescale = (value * 99 + 1) * baseTimeScale / 100;  // 将 0-1 映射到 5%-100% 的缩放范围
-    // timescale = value * baseTimeScale;
+//     timescale = value * baseTimeScale;
     timescale=qMax(1,timescale);
 
     int newPointFocus = frameToPoint(focusFrame);
@@ -678,13 +684,13 @@ void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rec
 int BaseTimelineView::calculateFrameStep(double frameRate) const
 {
     if (timescale >= frameRate) {
-        return 1;  // 每帧都显示时间码
+        return 10;  // 每帧都显示时间码
     } else if (timescale >= frameRate / 2) {
-        return 2;  // 每2帧显示一次
+        return 20;  // 每2帧显示一次
     } else if (timescale >= frameRate / 5) {
-        return 5;  // 每5帧显示一次
+        return 50;  // 每5帧显示一次
     } else if (timescale >= frameRate / 10) {
-        return 10; // 每10帧显示一次
+        return 100; // 每10帧显示一次
     } else if (timescale >= frameRate / 25) {
         return 25; // 每25帧显示一次
     } else {

@@ -47,11 +47,11 @@ set(INCLUDES
         BaseTimeLineToolBar.h
         TimeLineDefines.h
         BaseTimeLineView.h
-        timelinewidget.h
+        BaseTimeLineWidget.h
         BaseTrackDelegate.h
         BaseTrackListView.h
         BaseTrackModel.h
-            )
+)
 # 源文件列表
 set(SOURCES
         AbstractClipModel.cpp
@@ -59,7 +59,7 @@ set(SOURCES
         BaseTimeLineModel.cpp
         BaseTimeLineToolBar.cpp
         BaseTimeLineView.cpp
-        timelinewidget.cpp
+        BaseTimeLineWidget.cpp
         BaseTrackDelegate.cpp
         BaseTrackListView.cpp
         BaseTrackModel.cpp

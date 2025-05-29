@@ -27,6 +27,7 @@ BaseTracklistView::BaseTracklistView(BaseTimelineModel *viemModel, QWidget *pare
     QObject::connect(Model, &BaseTimelineModel::S_trackAdd, this, &BaseTracklistView::onUpdateViewport);
     QObject::connect(Model, &BaseTimelineModel::S_trackDelete, this, &BaseTracklistView::onUpdateViewport);
     QObject::connect(Model, &BaseTimelineModel::S_trackMoved, this, &BaseTracklistView::onUpdateViewport);
+    QObject::connect(Model, &BaseTimelineModel::S_playheadMoved, this, &BaseTracklistView::onUpdateViewport);
     setItemDelegate(new BaseTrackDelegate(this));
     setMouseTracking(true);
     m_scrollOffset = QPoint(0,0);
@@ -212,7 +213,6 @@ void BaseTracklistView::scroll(int dx, int dy){
  * @brief 更新视图
  */
 void BaseTracklistView::onUpdateViewport(){
-    
     updateScrollBars();
     viewport()->update();
 }
@@ -347,14 +347,11 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
     QFont font;
     font.setPixelSize(fontSize);
     painter.setFont(font);
-//    if(Model->getTimeDisplayFormat()==TimedisplayFormat::TimeCodeFormat){
-//        painter.drawText(ruler,Qt::AlignCenter,QString("%1:%2:%3.%4").arg(Model->getTimecodeGenerator()->getCurrentTimecode().hours)
-//                                                                    .arg(Model->getTimecodeGenerator()->getCurrentTimecode().minutes)
-//                                                                    .arg(Model->getTimecodeGenerator()->getCurrentTimecode().seconds)
-//                                                                    .arg(Model->getTimecodeGenerator()->getCurrentTimecode().frames));
-//    }else{
-//        painter.drawText(ruler,Qt::AlignCenter, Model->getTimecodeGenerator()->getCurrentAbsoluteTime());
-//    }
+    if(Model->getTimeDisplayFormat()==TimedisplayFormat::TimeCodeFormat){
+        painter.drawText(ruler,Qt::AlignCenter,QString("%1").arg(Model->getPlayheadPos()));
+    }else{
+        painter.drawText(ruler,Qt::AlignCenter,QString("00:%1").arg(Model->getPlayheadPos()));
+    }
     painter.restore();  // 恢复状态
 }
 

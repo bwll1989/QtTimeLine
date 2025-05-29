@@ -89,7 +89,6 @@ void BaseTrackModel::onSetTrackIndex(int index){
     int oldindex=m_trackIndex;
     m_trackIndex = index;
     for(AbstractClipModel* clip : m_clips){
-        qDebug() << "设置了新的轨道索引"<<index;
         clip->setTrackIndex(index);
     }
     emit S_trackIndexChanged(oldindex,index);

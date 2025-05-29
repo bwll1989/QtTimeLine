@@ -23,43 +23,43 @@ public:
      * 移除剪辑
      * @param AbstractClipModel* clip 剪辑
      */
-    void removeClip(AbstractClipModel* clip) ;
+    virtual void removeClip(AbstractClipModel* clip) ;
 
     /**
      * 获取剪辑
      * @return QVector<AbstractClipModel*>& 剪辑列表
      */
-    QVector<AbstractClipModel*>& getClips();
+    virtual QVector<AbstractClipModel*>& getClips();
     /**
      * 获取轨道类型
      * @return QString 轨道类型
      */
-    QString type() const;
+    virtual QString type() const;
     /**
      * 获取轨道索引
      * @return int 轨道索引
      */
-    int trackIndex() const;
+    virtual int trackIndex() const;
     /**
      * 保存轨道
      * @return QJsonObject 轨道JSON
      */
-    QJsonObject save() const;
+    virtual QJsonObject save() const;
     /**
      * 获取轨道长度
      * @return qint64 轨道长度
      */
-    qint64 getTrackLength() const ;
+    virtual qint64 getTrackLength() const ;
     /**
      * 加载轨道
      * @param const QJsonObject &trackJson 轨道JSON
      * @param PluginLoader* pluginLoader 插件加载器
      */
-    void setName(const QString& name);
+    virtual void setName(const QString& name);
 
-    QString getName() const;
+    virtual QString getName() const;
 
-    void load(const QJsonObject &trackJson, BasePluginLoader* pluginLoader) ;
+    virtual void load(const QJsonObject &trackJson, BasePluginLoader* pluginLoader) ;
 
 public:
     Q_SIGNALS:
@@ -78,18 +78,18 @@ public slots:
      /**
      * 计算轨道长度
      */
-    void onCalculateTrackLength();
+    virtual void onCalculateTrackLength();
     /**
      * 设置轨道索引
      * @param int index 轨道索引
      */
-    void onSetTrackIndex(int index);
+    virtual void onSetTrackIndex(int index);
     /**
      * 添加剪辑
      * @param int start 开始
      * @param PluginLoader* pluginLoader 插件加载器
      */
-    void onAddClip(AbstractClipModel* newClip) ;
+    virtual void onAddClip(AbstractClipModel* newClip) ;
 private:
      //下一个ID
     quint64 nextId = 1;
