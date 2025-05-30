@@ -1,7 +1,7 @@
 #ifndef CONTROLCLIPMODEL_HPP
 #define CONTROLCLIPMODEL_HPP
 #include <QPushButton>
-#include "../../AbstractClipModel.h"
+#include "../../AbstractClipModel.hpp"
 #include <QJsonArray>
 class ControlClipModel : public AbstractClipModel {
     Q_OBJECT
@@ -23,7 +23,7 @@ ControlClipModel(int start): AbstractClipModel(start, "Control"),
 // 重写保存和加载函数
 QJsonObject save() const override {
     QJsonObject json = AbstractClipModel::save();
-    return json;
+    return json; 
 }
 
 void load(const QJsonObject& json) override {

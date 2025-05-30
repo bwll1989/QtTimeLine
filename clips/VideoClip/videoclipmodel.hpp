@@ -1,7 +1,7 @@
 #ifndef VIDEOCLIPMODEL_H
 #define VIDEOCLIPMODEL_H
 #include <QPushButton>
-#include "../../AbstractClipModel.h"
+#include "../../AbstractClipModel.hpp"
 #include <QJsonArray>
 class VideoClipModel : public AbstractClipModel {
     Q_OBJECT

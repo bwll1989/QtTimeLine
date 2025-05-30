@@ -15,8 +15,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 set(SOURCES
     controlclipmodel.hpp
     controlclipplugin.hpp
-    ../../AbstractClipModel.h
-    ../../AbstractClipModel.cpp
+    ../../AbstractClipModel.hpp
     ../../AbstractClipInterface.h
 )
 
@@ -29,6 +28,12 @@ add_library(Control MODULE
 set_target_properties(Control PROPERTIES
     PREFIX ""
     SUFFIX ".plugin"
+)
+
+# 添加编译定义
+target_compile_definitions(Control PRIVATE
+    NODE_TIMELINE_SHARED
+    NODE_TIMELINE_EXPORTS
 )
 
 # 链接Qt库

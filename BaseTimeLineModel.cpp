@@ -3,7 +3,9 @@
 
 BaseTimeLineModel::BaseTimeLineModel(QObject* parent) : QAbstractItemModel(parent), m_pluginLoader(nullptr)
 {
-
+      // 创建并初始化插件加载器
+    m_pluginLoader = new BasePluginLoader(this);
+    m_pluginLoader->loadPlugins();
 }
 // 获取播放头位置
 qint64 BaseTimeLineModel::getPlayheadPos() const{

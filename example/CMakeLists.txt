@@ -23,7 +23,7 @@ set(SOURCES
 )
 
 # 创建可执行文件
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME})
 
 # 设置目标属性
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -31,6 +31,16 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     AUTORCC ON
     AUTOUIC ON
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# 添加源文件
+target_sources(${PROJECT_NAME} PRIVATE
+    ${SOURCES}
+)
+
+# 添加包含目录
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}
 )
 
 # 链接 Qtimeline 库
@@ -44,7 +54,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Gui
 )
 
-# 设置输出目录
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+# 添加编译定义
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    NODE_TIMELINE_SHARED
 )

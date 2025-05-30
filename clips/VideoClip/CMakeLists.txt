@@ -15,8 +15,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 set(SOURCES
     videoclipmodel.hpp
     videoclipplugin.hpp
-    ../../AbstractClipModel.h
-    ../../AbstractClipModel.cpp
+    ../../AbstractClipModel.hpp
     ../../AbstractClipInterface.h
 )
 
@@ -43,3 +42,9 @@ target_include_directories(Video PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../..
 ) 
+
+# 添加编译定义
+target_compile_definitions(Video PRIVATE
+    NODE_TIMELINE_SHARED
+    NODE_TIMELINE_EXPORTS
+)

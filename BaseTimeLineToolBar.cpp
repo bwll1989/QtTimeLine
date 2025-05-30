@@ -88,7 +88,9 @@ void BaseTimelineToolbar::createActions()
     m_settingsAction = new QAction(this);
     m_settingsAction->setIcon(QIcon(":/icons/icons/settings.png"));
     m_settingsAction->setToolTip(tr("Settings"));
-    connect(m_settingsAction, &QAction::triggered, this, &BaseTimelineToolbar::settingsClicked);
+    connect(m_settingsAction, &QAction::triggered, this, [this]() {
+        emit settingsClicked();
+    });
     
     m_outputAction = new QAction(this);
     m_outputAction->setIcon(QIcon(":/icons/icons/views.png"));

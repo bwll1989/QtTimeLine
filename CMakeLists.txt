@@ -40,7 +40,7 @@ include_directories(
         clips/VideoClip
 )
 set(INCLUDES 
-        AbstractClipModel.h
+        AbstractClipModel.hpp
         AbstractClipInterface.h
         BaseTimeLineModel.h
         TimeLineStyle.h
@@ -51,10 +51,12 @@ set(INCLUDES
         BaseTimeLineWidget.h
         BaseTrackDelegate.h
         BaseTrackListView.h
+        Export.hpp
+        Compiler.hpp
+        OperatingSystem.hpp
 )
 # 源文件列表
 set(SOURCES
-        AbstractClipModel.cpp
         BasePluginLoader.cpp
         BaseTimeLineModel.cpp
         BaseTimeLineToolBar.cpp
@@ -68,7 +70,7 @@ set(QRC_FILES
         resources.qrc
         )
 # 创建共享库
-add_library(${PROJECT_NAME} SHARED ${SOURCES} ${INCLUDES} ${QRC_FILES})
+add_library(${PROJECT_NAME} SHARED)
 
 # 设置目标属性
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -79,6 +81,21 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+)
+
+# 添加源文件
+target_sources(${PROJECT_NAME} PRIVATE
+    ${SOURCES}
+    ${INCLUDES}
+    ${QRC_FILES}
+)
+
+# 添加包含目录
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/clips
+    ${CMAKE_CURRENT_SOURCE_DIR}/clips/ControlClip
+    ${CMAKE_CURRENT_SOURCE_DIR}/clips/VideoClip
 )
 
 # 链接 Qt 库
@@ -98,8 +115,10 @@ if(QT_VERSION_MAJOR EQUAL 6)
 endif()
 
 # 添加导出宏定义
-target_compile_definitions(${PROJECT_NAME} PRIVATE TIMELINEWIDGET_LIBRARY)
-
+target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    NODE_TIMELINE_SHARED
+    NODE_TIMELINE_EXPORTS
+)
 # 添加插件子目录
 add_subdirectory(clips/ControlClip)
 add_subdirectory(clips/VideoClip)

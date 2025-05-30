@@ -7,8 +7,8 @@
 #include <QDebug>
 #include <QApplication>
 #include "AbstractClipInterface.h"
-
-class BasePluginLoader : public QObject
+#include "Export.hpp"
+class NODE_TIMELINE_PUBLIC BasePluginLoader : public QObject
 {
     Q_OBJECT
 public:

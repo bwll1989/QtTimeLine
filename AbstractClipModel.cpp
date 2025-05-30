@@ -1,5 +1,4 @@
 #include "AbstractClipModel.h"
-
 AbstractClipModel::AbstractClipModel(int start,const QString& type, QObject* parent)
 : QObject(parent),
 m_type(type),

@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     model = new BaseTimeLineModel();
     //给模型初始化插件加载器
-    model->setPluginLoader(new BasePluginLoader());
+    /*model->setPluginLoader(new BasePluginLoader());*/
 
     timeline = new BaseTimelineWidget(model);
     ui->verticalLayout->addWidget(timeline);

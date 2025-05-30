@@ -230,7 +230,6 @@ void BaseTimelineView::onUpdateViewport(){
 
 // 滚动视图
 void BaseTimelineView::onScroll(int dx, int dy){
-    
     m_scrollOffset -= QPoint(dx, dy);
     QAbstractItemView::scrollContentsBy(dx, dy);
     updateEditorGeometries();

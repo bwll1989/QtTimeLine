@@ -9,22 +9,14 @@ BaseTimelineWidget::BaseTimelineWidget(BaseTimeLineModel* model, QWidget *parent
     // model = new BaseTimelineModel();
     // 创建组件
     createComponents();
-    // 连接轨道列表竖向滚动到时间线竖向滚动
-    connect(tracklist, &BaseTracklistView::trackScrolled, view, &BaseTimelineView::onScroll);
-    // 连接模型轨道变化到时间线更新视图
-//    connect(model, &BaseTimelineModel::S_trackCountChanged, view, &BaseTimelineView::onUpdateViewport);
-    // 连接轨道列表更新到时间线更新视图
-    connect(tracklist, &BaseTracklistView::viewUpdate, view, &BaseTimelineView::onUpdateViewport);
-    // 连接工具栏设置按钮到显示设置对话框
-
-    connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
+   
 }
 
 BaseTimelineWidget::~BaseTimelineWidget() =default;
 
 void BaseTimelineWidget::showSettingsDialog()
 {
-
+    qDebug()<<"showSettingsDialog";
 }
 
 QJsonObject BaseTimelineWidget::save() {
@@ -61,7 +53,18 @@ void BaseTimelineWidget::createComponents() {
     splitter->setMouseTracking(true);
     splitter->setSizes(sizes);
     mainLayout->addWidget(splitter);
-    
+     // 连接轨道列表竖向滚动到时间线竖向滚动
+    qDebug() << "showSettingsDialog";
+    qDebug() << "view valid:" << (view != nullptr);
+    qDebug() << "toolbar valid:" << (view && view->toolbar != nullptr);
+    connect(tracklist, &BaseTracklistView::trackScrolled, view, &BaseTimelineView::onScroll);
+    // 连接模型轨道变化到时间线更新视图
+//    connect(model, &BaseTimelineModel::S_trackCountChanged, view, &BaseTimelineView::onUpdateViewport);
+    // 连接轨道列表更新到时间线更新视图
+    connect(tracklist, &BaseTracklistView::viewUpdate, view, &BaseTimelineView::onUpdateViewport);
+    // 连接工具栏设置按钮到显示设置对话框
+
+    connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
     // 添加到水平分割器
     // horizontalSplitter->addWidget(leftPanel);
     

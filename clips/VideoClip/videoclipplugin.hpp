@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include "../../AbstractClipInterface.h"
-#include "../../AbstractClipModel.h"
+#include "../../AbstractClipModel.hpp"
 #include "videoclipmodel.hpp"
 
 class VideoClipPlugin : public QObject, public ClipPlugInterface

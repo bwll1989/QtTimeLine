@@ -1,7 +1,7 @@
 #include "BaseTrackListView.h"
 #include <QDrag>
 #include <QMimeData>
-
+#include <QMenu>
 BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *parent): Model(viemModel), QAbstractItemView{parent}{
     setModel(Model);
     setSelectionMode(QAbstractItemView::SingleSelection);
@@ -60,7 +60,7 @@ void BaseTracklistView::onDeleteTrack() {
  */
 void BaseTracklistView::contextMenuEvent(QContextMenuEvent* event) {
         QMenu contextMenu(this);
-
+        //qDebug()<<"contextMenuEvent";
         // Add track creation submenu
         QMenu* addTrackMenu = contextMenu.addMenu("Add Track");
         
@@ -197,6 +197,7 @@ void BaseTracklistView::scrollContentsBy(int dx, int dy) {
     QAbstractItemView::scrollContentsBy(dx, dy);
     updateEditorGeometries();
     onUpdateViewport();
+    //qDebug()<<"scrollContentsBy";
     emit trackScrolled(dx, dy);
 }
 

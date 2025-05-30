@@ -14,8 +14,8 @@
 #include "TimeLineStyle.h"
 #include <QTimer>
 #include <QMessageBox>
-
-class BaseTracklistView : public QAbstractItemView
+#include "Export.hpp"
+class NODE_TIMELINE_PUBLIC BaseTracklistView : public QAbstractItemView
 {
     Q_OBJECT
 public:

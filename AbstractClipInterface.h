@@ -2,7 +2,7 @@
 #define CLIPPLUGINTERFACE_H
 
 #include <QtPlugin>
-#include "AbstractClipModel.h"
+#include "AbstractClipModel.hpp"
 // #include "Widget/TimeLineWidget/TimelineAbstract/AbstractClipDelegate.hpp"
 
 class ClipPlugInterface

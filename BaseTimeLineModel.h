@@ -4,7 +4,7 @@
 #include <QAbstractItemModel>
 #include <unordered_set>
 #include <unordered_map>
-#include "AbstractClipModel.h"
+#include "AbstractClipModel.hpp"
 #include <string>
 #include <QMimeData>
 #include <QIODevice>
@@ -16,6 +16,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include "BasePluginLoader.h"
+#include "Export.hpp"
 struct TrackData {
     QString type;
     QString name;
@@ -31,7 +32,7 @@ struct TrackData {
 }
 };
 // TimelineModel类继承自QAbstractItemModel
-class BaseTimeLineModel : public QAbstractItemModel
+class NODE_TIMELINE_PUBLIC BaseTimeLineModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
