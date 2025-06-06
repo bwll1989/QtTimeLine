@@ -29,19 +29,20 @@ enum TimelineRoles {
     TrackClipsCountRole, // 轨道剪辑数量
     TrackClipsRole, // 轨道剪辑列表
     TimelineLengthRole, // 时间轴长度
+    TimeCodeTypeRole, //时间码格式
    
 };
 
-namespace TimecodeFormat {
-    // 标准电影帧率
-    constexpr int FILM = 24;           // 24 fps - 标准电影
-    constexpr double FILM_DF = 23.976; // 24 fps - 标准电影 Drop Frame
-    // 标准电视帧率 constexpr int FILM
-    constexpr int NTSC = 30;          // 29.97 fps - NTSC
-    constexpr double NTSC_DF = 29.97;  // 29.97 fps - NTSC Drop Frame
-    constexpr int PAL = 25;           // 25 fps - PAL/SECAM
-    constexpr double PAL_DF = 24.975; // 25 fps - PAL/SECAM Drop Frame
-}
+// namespace TimecodeFormat {
+//     // 标准电影帧率
+//     constexpr int FILM = 24;           // 24 fps - 标准电影
+//     constexpr double FILM_DF = 23.976; // 24 fps - 标准电影 Drop Frame
+//     // 标准电视帧率 constexpr int FILM
+//     constexpr int NTSC = 30;          // 29.97 fps - NTSC
+//     constexpr double NTSC_DF = 29.97;  // 29.97 fps - NTSC Drop Frame
+//     constexpr int PAL = 25;           // 25 fps - PAL/SECAM
+//     constexpr double PAL_DF = 24.975; // 25 fps - PAL/SECAM Drop Frame
+// }
 
 
 

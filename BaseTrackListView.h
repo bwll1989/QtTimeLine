@@ -43,6 +43,8 @@ public:
      */
     virtual QModelIndex indexAt(const QPoint &point) const override;
 
+    virtual BaseTimeLineModel * getModel();
+
 
 signals:
     /**
@@ -110,6 +112,8 @@ protected:
      * @param QPaintEvent *event 绘制事件
      */
     virtual void paintEvent(QPaintEvent *event) override;
+
+    virtual void drawTitle(QPainter *painter);
     /**
      * 鼠标按下事件
      * @param QMouseEvent *event 鼠标事件
@@ -195,7 +199,7 @@ public:
      * 删除轨道动作
      */
     QAction* m_deleteTrackAction;
-private:
+protected:
     //滚动偏移  
     QPoint m_scrollOffset;
     //拖动开始位置

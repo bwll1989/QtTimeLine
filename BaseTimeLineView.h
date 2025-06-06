@@ -264,6 +264,30 @@ protected:
      * @return int 帧步长
      */
     virtual int calculateFrameStep(double frameRate) const;
+
+    virtual BaseTimeLineModel* getModel() const;
+
+    /**
+     * 获取轨道宽度
+     * @return int 轨道宽度
+     */
+    virtual int getTrackWdith() const;
+    /**
+     * 移动选定的剪辑
+     * @param int dx 水平移动
+     * @param int dy 垂直移动
+     * @param bool isMouse 是否鼠标移动
+     */
+    virtual void moveSelectedClip(int dx, int dy,bool isMouse = true);
+    /**
+     * 移动播放头到指定帧
+     * @param int frame 帧
+     */
+    virtual void movePlayheadToFrame(int frame);
+    // 更新帧位置
+    virtual void onFrameChanged(qint64 frame);
+    // 播放状态改变
+    virtual void onPlaybackStateChanged(bool isPlaying);
 protected slots:
     /**
      * 选择更改
@@ -279,7 +303,7 @@ protected slots:
      */
     // QAbstractItemDelegate* itemDelegateForIndex(const QModelIndex &index) const override ;
 
-private:
+protected:
     // 当前缩放
     double currentScale = 1.0;
     // 时间线模型
@@ -322,27 +346,6 @@ private:
     hoverState m_mouseUnderClipEdge = NONE;
     // 鼠标悬停索引
     QModelIndex m_hoverIndex = QModelIndex();
-    /**
-     * 获取轨道宽度
-     * @return int 轨道宽度
-     */
-    virtual int getTrackWdith() const;
-    /**
-     * 移动选定的剪辑
-     * @param int dx 水平移动
-     * @param int dy 垂直移动
-     * @param bool isMouse 是否鼠标移动
-     */
-    virtual void moveSelectedClip(int dx, int dy,bool isMouse = true);
-    /**
-     * 移动播放头到指定帧
-     * @param int frame 帧
-     */
-    virtual void movePlayheadToFrame(int frame);
-    // 更新帧位置
-    virtual void onFrameChanged(qint64 frame);
-    // 播放状态改变
-    virtual void onPlaybackStateChanged(bool isPlaying);
 
 };
 

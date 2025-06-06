@@ -18,6 +18,7 @@
 #include <QRect>
 #include <QColor>
 #include <QFont>
+#include <TimeCodeDefines.h>
 #include "Export.hpp"
 
 class NODE_TIMELINE_PUBLIC AbstractClipModel : public QObject {
@@ -49,7 +50,7 @@ virtual~AbstractClipModel()
     }
     
 }
-    
+
 qint64 id() const { return m_id; }
 
 void setId(qint64 id) { m_id = id; }
@@ -157,12 +158,17 @@ void setShowBorder(bool showBorder) { SHOWBORDER = showBorder; }
      * 保存
      * @return QJsonObject 数据
      */
+
+virtual void setTimeCodeType(TimeCodeType timeCodeType){m_timeCodeType=timeCodeType;}
+
+virtual TimeCodeType getTimeCodeType() const {return m_timeCodeType;}
+
 virtual QJsonObject save() const {
     QJsonObject clipJson;
     clipJson["start"] = m_start;
     clipJson["end"] = m_end;
     clipJson["type"] = m_type;
-    clipJson["ID"]=m_id;
+    clipJson["Id"]=m_id;
     return clipJson;
 }
     /**
@@ -173,7 +179,7 @@ virtual void load(const QJsonObject& json) {
     m_start = json["start"].toInt();
     m_end = json["end"].toInt();
     m_type = json["type"].toString();
-    m_id = json["ID"].toInt();
+    m_id = json["Id"].toInt();
 }
     /**
      * 获取数据
@@ -225,7 +231,7 @@ void showPropertyWidget(){
      * @param const QRect& rect 绘制区域
      * @param bool selected 是否被选中
      */
-void initPropertyWidget(){
+virtual void initPropertyWidget(){
    
     m_standardPropertyWidget = new QWidget();
     m_layout = new QVBoxLayout(m_standardPropertyWidget);
@@ -252,25 +258,26 @@ void initPropertyWidget(){
     connect(this, &AbstractClipModel::timelinePositionChanged, this, [this](){
         m_startFrameSpinBox->blockSignals(true);
         m_startFrameSpinBox->setValue(start());
-       m_startTimeCodeLineEdit->setText(QString("%1")
-                                   .arg(start()));
+        auto startTimeCode=frames_to_timecode_frame(start(),getTimeCodeType());
+        m_startTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(startTimeCode.hours)
+                                                                   .arg(startTimeCode.minutes)
+                                                                   .arg(startTimeCode.seconds)
+                                                                   .arg(startTimeCode.frames));
         m_startFrameSpinBox->blockSignals(false);
     });
     timeLayout->addWidget(m_startFrameSpinBox, 0, 1);
-    
-    // 开始时间码显示
-    auto startTimeCodeLabel = new QLabel(tr("开始时间:"), m_standardPropertyWidget);
-    timeLayout->addWidget(startTimeCodeLabel, 1, 0);
-    // m_startTimeCodeLineEdit = new QLineEdit(this);  // 确保在头文件中声明
     m_startTimeCodeLineEdit=new QLineEdit(m_standardPropertyWidget);
     m_startTimeCodeLineEdit->setReadOnly(true);  // 设置为只读
-   m_startTimeCodeLineEdit->setText(QString("%1")
-                                   .arg(end()));
-    timeLayout->addWidget(m_startTimeCodeLineEdit, 1, 1);
+    auto startTimeCode=frames_to_timecode_frame(start(),getTimeCodeType());
+    m_startTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(startTimeCode.hours)
+                                                               .arg(startTimeCode.minutes)
+                                                               .arg(startTimeCode.seconds)
+                                                               .arg(startTimeCode.frames));
+    timeLayout->addWidget(m_startTimeCodeLineEdit, 0, 2);
     
     // 结束帧显示
     auto endLabel = new QLabel(tr("结束帧:"), m_standardPropertyWidget);
-    timeLayout->addWidget(endLabel, 2, 0);
+    timeLayout->addWidget(endLabel, 1, 0);
     m_endFrameSpinBox=new QSpinBox(m_standardPropertyWidget);
     m_endFrameSpinBox->setRange(0, 9999999);
     m_endFrameSpinBox->setValue(end());
@@ -278,21 +285,25 @@ void initPropertyWidget(){
     connect(this, &AbstractClipModel::lengthChanged, this, [this](){
         m_endFrameSpinBox->blockSignals(true);
         m_endFrameSpinBox->setValue(end());
-       m_endTimeCodeLineEdit->setText(QString("%1")
-                                   .arg(end()));
+        auto endTimeCode=frames_to_timecode_frame(end(),getTimeCodeType());
+        m_endTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(endTimeCode.hours)
+                                                                .arg(endTimeCode.minutes)
+                                                                .arg(endTimeCode.seconds)
+                                                                .arg(endTimeCode.frames));
         m_endFrameSpinBox->blockSignals(false);
     });
-    timeLayout->addWidget(m_endFrameSpinBox, 2, 1);
+    timeLayout->addWidget(m_endFrameSpinBox, 1, 1);
     
     // 结束时间码显示
-    auto endTimeCodeLabel = new QLabel(tr("结束时间:"), m_standardPropertyWidget);
-    timeLayout->addWidget(endTimeCodeLabel, 3, 0);
-    // m_endTimeCodeLineEdit = new QLineEdit(this);  // 确保在头文件中声明
+
     m_endTimeCodeLineEdit=new QLineEdit(m_standardPropertyWidget);
     m_endTimeCodeLineEdit->setReadOnly(true);  // 设置为只读
-   m_endTimeCodeLineEdit->setText(QString("%1")
-                                   .arg(end()));
-    timeLayout->addWidget(m_endTimeCodeLineEdit, 3, 1);
+    auto endtimecode=frames_to_timecode_frame(end(),getTimeCodeType());
+    m_endTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(endtimecode.hours).
+                                                            arg(endtimecode.minutes).
+                                                            arg(endtimecode.seconds).
+                                                            arg(endtimecode.frames));
+    timeLayout->addWidget(m_endTimeCodeLineEdit, 1, 2);
 
     m_layout->addWidget(timeGroupBox);
     
@@ -366,6 +377,8 @@ protected:
     QLineEdit* m_endTimeCodeLineEdit;
     // 代理窗口
     QWidget* m_clipPropertyWidget;
+    //时间码类型
+    TimeCodeType m_timeCodeType;
     /**
 
      * 绘制背景
@@ -414,6 +427,7 @@ virtual void drawTitle(QPainter* painter, const QRect& rect) const {
     painter->restore();
 
 }
+
 };
 
 Q_DECLARE_METATYPE(AbstractClipModel*)

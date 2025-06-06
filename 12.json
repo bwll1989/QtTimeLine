@@ -1,0 +1,83 @@
+{
+    "displayFormat": 1,
+    "tracks": [
+        {
+            "clips": [
+                {
+                    "ID": 0,
+                    "end": 381,
+                    "start": 281,
+                    "type": "Control"
+                }
+            ],
+            "trackName": "Track 0",
+            "type": "Control"
+        },
+        {
+            "clips": [
+                {
+                    "ID": 1,
+                    "end": 202,
+                    "start": 102,
+                    "type": "Video"
+                },
+                {
+                    "ID": 2,
+                    "end": 579,
+                    "start": 479,
+                    "type": "Video"
+                },
+                {
+                    "ID": 3,
+                    "end": 416,
+                    "start": 316,
+                    "type": "Video"
+                }
+            ],
+            "trackName": "Track 1",
+            "type": "Video"
+        },
+        {
+            "clips": [
+                {
+                    "ID": 4,
+                    "end": 643,
+                    "start": 1,
+                    "type": "Control"
+                }
+            ],
+            "trackName": "Track 2",
+            "type": "Control"
+        },
+        {
+            "clips": [
+                {
+                    "ID": 3,
+                    "end": 248,
+                    "start": 148,
+                    "type": "Control"
+                },
+                {
+                    "ID": 6,
+                    "end": 915,
+                    "start": 353,
+                    "type": "Control"
+                }
+            ],
+            "trackName": "Track 3",
+            "type": "Control"
+        },
+        {
+            "clips": [
+                {
+                    "ID": 5,
+                    "end": 796,
+                    "start": 68,
+                    "type": "Control"
+                }
+            ],
+            "trackName": "Track 4",
+            "type": "Control"
+        }
+    ]
+}

@@ -120,6 +120,10 @@ QModelIndex BaseTracklistView::indexAt(const QPoint &point) const {
     return QModelIndex();
 }
 
+BaseTimeLineModel* BaseTracklistView::getModel()
+{
+    return Model;
+}
 /**
  * @brief 选择改变
  */
@@ -339,21 +343,25 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         
     }
 
-    // Draw the ruler and time display separately
-    painter.setBrush(QBrush(bgColour));
-    painter.drawRect(0,0,viewportWidth,rulerHeight+toolbarHeight);
-        
+    drawTitle(&painter);
+}
+
+void BaseTracklistView::drawTitle(QPainter *painter)
+{
+    painter->setBrush(QBrush(bgColour));
+    painter->drawRect(0,0,viewport()->width(),rulerHeight+toolbarHeight);
+
     QRect ruler(0,  0, viewport()->width(), rulerHeight+toolbarHeight);
-    painter.setPen(fontColor);
+    painter->setPen(fontColor);
     QFont font;
     font.setPixelSize(fontSize);
-    painter.setFont(font);
+    painter->setFont(font);
     if(Model->getTimeDisplayFormat()==TimedisplayFormat::TimeCodeFormat){
-        painter.drawText(ruler,Qt::AlignCenter,QString("%1").arg(Model->getPlayheadPos()));
+        painter->drawText(ruler,Qt::AlignCenter,QString("%1").arg(Model->getPlayheadPos()));
     }else{
-        painter.drawText(ruler,Qt::AlignCenter,QString("00:%1").arg(Model->getPlayheadPos()));
+        painter->drawText(ruler,Qt::AlignCenter,QString("00:%1").arg(Model->getPlayheadPos()));
     }
-    painter.restore();  // 恢复状态
+    painter->restore();  // 恢复状态
 }
 
 void BaseTracklistView::dragEnterEvent(QDragEnterEvent *event) {

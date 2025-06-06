@@ -33,21 +33,21 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         
         // 连接工具栏播放按钮信号
         connect(toolbar, &BaseTimelineToolbar::playClicked, [this]() {
-            Model->onStartPlay();
+            getModel()->onStartPlay();
         });
         // 连接工具栏停止按钮信号
         connect(toolbar, &BaseTimelineToolbar::stopClicked, [this]() {
-            Model->onStopPlay();
+            getModel()->onStopPlay();
         });
         // 连接工具栏暂停按钮信号
         connect(toolbar, &BaseTimelineToolbar::pauseClicked, [this]() {
-            Model->onPausePlay();
+            getModel()->onPausePlay();
         });
         connect(toolbar,&BaseTimelineToolbar::prevFrameClicked,[this](){
-           Model->onSetPlayheadPos(qMax(0,Model->getPlayheadPos()-1));
+           getModel()->onSetPlayheadPos(qMax(0,getModel()->getPlayheadPos()-1));
         });
         connect(toolbar,&BaseTimelineToolbar::nextFrameClicked,[this](){
-            Model->onSetPlayheadPos(Model->getPlayheadPos()+1);
+            getModel()->onSetPlayheadPos(getModel()->getPlayheadPos()+1);
         });
         // 当视频窗口关闭时，更新工具栏按钮状态
         connect(Model,&BaseTimeLineModel::S_clipGeometryChanged,this,&BaseTimelineView::onUpdateViewport);
@@ -69,20 +69,20 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         connect(toolbar, &BaseTimelineToolbar::deleteClipClicked, [this]() {
             if(selectionModel()->selectedIndexes().isEmpty())
                 return;
-            
+
             QModelIndex currentIndex = selectionModel()->currentIndex();
-            Model->onDeleteClip(currentIndex);
-            
+            getModel()->onDeleteClip(currentIndex);
+
             // 清除选择并发送 nullptr
             selectionModel()->clearSelection();
             emit currentClipChanged(nullptr);
-            
+
             viewport()->update();
         });
 
         // 连接放大按钮信号
         connect(toolbar, &BaseTimelineToolbar::zoomInClicked, [this]() {
-       
+
            setScale(1.1);
         });
         // 连接缩小按钮信号
@@ -101,7 +101,7 @@ BaseTimelineView::~BaseTimelineView()
 }
 QRect BaseTimelineView::visualRect(const QModelIndex &index) const
 {
-    
+
     return itemRect(index).translated(-m_scrollOffset);
 }
 
@@ -131,17 +131,17 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
                     }
                 }
                 //如果位置在轨道矩形内，但不在剪辑矩形内，返回轨道索引
-                return trackIndex; 
+                return trackIndex;
             }
         }
         //如果位置不在任何轨道或剪辑矩形内，返回无效索引
-        return QModelIndex(); 
+        return QModelIndex();
     }
 
 QRect BaseTimelineView::itemRect(const QModelIndex &index) const
 {
 
-    
+
     if (!index.isValid()) {
     return QRect();
     }
@@ -162,8 +162,8 @@ QRect BaseTimelineView::itemRect(const QModelIndex &index) const
             // 获取剪辑开始帧
             int startFrame = clip->start();
             // 获取剪辑结束帧
-            int endFrame = clip->end()+1; 
-            // 获取剪辑所在轨道行   
+            int endFrame = clip->end()+1;
+            // 获取剪辑所在轨道行
             int trackRow = index.parent().row();
             // 获取剪辑开始点x
             int clipStartX = frameToPoint(startFrame);
@@ -208,7 +208,7 @@ void BaseTimelineView::moveSelectedClip(int dx, int dy, bool isMouse)
     // 确保不会移动到负值位置
     newPos = std::max(0, newPos);
     // 更新模型数据
-    Model->setData(list.first(), newPos, TimelineRoles::ClipPosRole);
+    getModel()->setData(list.first(), newPos, TimelineRoles::ClipPosRole);
     updateEditorGeometries();
     updateScrollBars();
     viewport()->update();
@@ -218,7 +218,7 @@ void BaseTimelineView::movePlayheadToFrame(int frame)
 {
     //  qDebug() << "movePlayheadToFrame" << frame;
     // 直接设置时间码生成器的帧位置
-    Model->onSetPlayheadPos(frame);
+    getModel()->onSetPlayheadPos(frame);
     viewport()->update();
 }
 
@@ -241,10 +241,10 @@ void BaseTimelineView::horizontalScroll(double position)
     // position 是 0-1 之间的值，表示滚动条的相对位置
     int maxScroll = horizontalScrollBar()->maximum();
     int newScrollValue = static_cast<int>(maxScroll * position);
-    
+
     // 设置滚动条位置
     horizontalScrollBar()->setValue(newScrollValue);
-    
+
     // 更新编辑器位置
     updateEditorGeometries();
     viewport()->update();
@@ -293,12 +293,12 @@ void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
         contextMenu.exec(event->globalPos());
     }
     if(index.isValid()&&selectionModel()->isSelected(index)){
-   
+
         QMenu contextMenu(this);
 
         QAction* deleteClipAction = new QAction("Delete Clip", this);
         connect(deleteClipAction, &QAction::triggered, [this, index]() {
-            Model->onDeleteClip(index);
+            getModel()->onDeleteClip(index);
             selectionModel()->clearSelection();
             viewport()->update();
         });
@@ -316,7 +316,7 @@ void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
 //        // 处理删除键
 //
 //        QModelIndex currentIndex = selectionModel()->currentIndex();
-//        Model->onDeleteClip(currentIndex);
+//        getModel()->onDeleteClip(currentIndex);
 //
 //        // 清除选择并发送 nullptr
 //        selectionModel()->clearSelection();
@@ -333,14 +333,14 @@ void BaseTimelineView::addClipAtPosition(const QModelIndex& index, const QPoint&
     }
 
     int trackIndex = index.row();
-    if (trackIndex < 0 || trackIndex >= Model->getTrackCount()) {
+    if (trackIndex < 0 || trackIndex >= getModel()->getTrackCount()) {
         qDebug() << "Invalid track index: " << trackIndex;
         return;
     }
     // Calculate the start frame based on the mouse position
     int startFrame = pointToFrame(pos.x() + m_scrollOffset.x());
-    
-    Model->onAddClip(trackIndex,startFrame);
+
+    getModel()->onAddClip(trackIndex,startFrame);
 
     // 更新视图
     onUpdateViewport();
@@ -382,8 +382,8 @@ void BaseTimelineView::setScale(double value)
 {
 
     // 保存当前焦点帧位置
-    int focusFrame = Model->getPlayheadPos();
-    
+    int focusFrame = getModel()->getPlayheadPos();
+
     // 计算旧焦点在点坐标系中的位置
     int oldPointFocus = frameToPoint(focusFrame);
     // 设置新的缩放比例 (value 范围是 0-1)
@@ -392,17 +392,17 @@ void BaseTimelineView::setScale(double value)
     timescale=qMax(1,timescale);
 
     int newPointFocus = frameToPoint(focusFrame);
-    
+
     // 计算位移差异以保持焦点位置不变
     int diff = newPointFocus - oldPointFocus;
-    
+
     // 调整滚动偏移以保持焦点位置
     if (m_scrollOffset.x() + diff >= 0) {
         scrollContentsBy(-diff, 0);
     } else {
         m_scrollOffset.setX(0);
     }
-    
+
     // 更新界面
     updateEditorGeometries();
     updateScrollBars();
@@ -414,7 +414,7 @@ void BaseTimelineView::resizeEvent(QResizeEvent *event)
     updateScrollBars();
     updateEditorGeometries();
     QAbstractItemView::resizeEvent(event);
-    
+
     // 更新ZoomController
     // emit timelineInfoChanged(getTrackWdith(), viewport()->width(), m_scrollOffset.x());
 }
@@ -431,15 +431,15 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
         QAbstractItemView::mousePressEvent(event);
         return;
     }
-    
+
     m_mouseStart = event->pos();
     m_mouseEnd = event->pos();
     mouseHeld = true;
 
     // 清除当前选择
     selectionModel()->clearSelection();
-    
-    // 获取播放头位置   
+
+    // 获取播放头位置
     int playheadPos = frameToPoint(((BaseTimeLineModel*)model())->getPlayheadPos());
     // 获取播放头矩形
     QRect playheadHitBox(QPoint(playheadPos-3,rulerHeight),QPoint(playheadPos+2,viewport()->height()));
@@ -450,24 +450,24 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
         m_playheadSelected = true;
         return;
     }
-    
+
     m_playheadSelected = false;
-    
+
     // 获取点击位置的项
     QModelIndex item = indexAt(event->pos());
-    
+
     // 如果点击到了片段
     if(item.isValid() && item.parent().isValid()) {
         // 设置当前项和选择
         selectionModel()->setCurrentIndex(item, QItemSelectionModel::ClearAndSelect);
         m_mouseOffset.setX(frameToPoint(item.data(TimelineRoles::ClipInRole).toInt()) - m_mouseStart.x());
-    } 
+    }
     // else {
     //     // 点击到空白区域或轨道
     //     selectionModel()->clearSelection();
     //     movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
     // }
-    
+
     viewport()->update();
 }
 
@@ -485,19 +485,19 @@ void BaseTimelineView::mouseMoveEvent(QMouseEvent *event)
             if(!selectionModel()->selectedIndexes().isEmpty()&&m_mouseEnd.x()>=0){
                 QModelIndex clipIndex = selectionModel()->selectedIndexes().first();
                 AbstractClipModel* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
-                
+
                 if(m_mouseUnderClipEdge==hoverState::NONE){
                     moveSelectedClip(pointToFrame(m_mouseEnd.x()+m_mouseOffset.x()),m_mouseEnd.y()+m_mouseOffset.y());
                 }else if(clip && clip->isResizable()){
                     if(m_mouseUnderClipEdge==hoverState::LEFT){
                         int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                        Model->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
-                        // Model->onTimelineLengthChanged();
+                        getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
+                        // getModel()->onTimelineLengthChanged();
                         updateEditorGeometries();
                     }else if(m_mouseUnderClipEdge==hoverState::RIGHT){
                         int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                        Model->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
-                        // Model->onTimelineLengthChanged();
+                        getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
+                        // getModel()->onTimelineLengthChanged();
                         updateEditorGeometries();
                     }
                 }
@@ -605,7 +605,7 @@ void BaseTimelineView::dropEvent(QDropEvent *event)
                       return true;
                   case Qt::Key_Delete: {
                       QModelIndex currentIndex = selectionModel()->currentIndex();
-                      Model->onDeleteClip(currentIndex);
+                      getModel()->onDeleteClip(currentIndex);
                       // 清除选择并发送 nullptr
                       selectionModel()->clearSelection();
                       emit currentClipChanged(nullptr);
@@ -627,16 +627,16 @@ void BaseTimelineView::paintEvent(QPaintEvent *event)
 
     // 1. 绘制基本背景和轨道分隔线
     drawBackground(&painter, event->rect());
-    
+
     // 2. 绘制垂直时间线
     drawVerticalTimeLines(&painter, event->rect());
-    
+
     // 3. 绘制轨道内容(clips)
     drawTracks(&painter);
-    
+
     // 4. 绘制时间标尺
     drawTimeRuler(&painter, event->rect());
-    
+
     // 5. 绘制播放头
     drawPlayhead(&painter);
 
@@ -647,7 +647,7 @@ void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
 {
     // 绘制背景
     painter->fillRect(rect, bgColour);
-    
+
     // 设置分割线颜色并绘制轨道分隔线
     painter->setPen(seperatorColour);
     for (int i = 0; i < model()->rowCount(); ++i) {
@@ -659,7 +659,7 @@ void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
 void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rect)
 {
     int lineheight = model()->rowCount() * trackHeight + rulerHeight + toolbarHeight;
-    
+
     // 计算时间线间隔
     double frameRate = 25.0;
     int frameStep = calculateFrameStep(frameRate);
@@ -673,9 +673,9 @@ void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rec
 
     // 绘制垂直时间线
     for (int i = startMarker; i < endMarker; i += timescale * frameStep) {
-        painter->drawLine(i - m_scrollOffset.x(), 
+        painter->drawLine(i - m_scrollOffset.x(),
                          std::max(rulerHeight, rect.top()),
-                         i - m_scrollOffset.x(), 
+                         i - m_scrollOffset.x(),
                          lineheight);
     }
 }
@@ -702,8 +702,8 @@ void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
     // 绘制标尺背景
     painter->setPen(rulerColour);
     painter->setBrush(QBrush(bgColour));
-    painter->drawRect(-m_scrollOffset.x(), 0, 
-                     rect.width() + m_scrollOffset.x(), 
+    painter->drawRect(-m_scrollOffset.x(), 0,
+                     rect.width() + m_scrollOffset.x(),
                      rulerHeight + toolbarHeight);
 
     // 计算时间线间隔
@@ -749,7 +749,7 @@ void BaseTimelineView::drawPlayhead(QPainter* painter)
         QPoint(playheadwidth, -playheadCornerHeight)
     };
 
-    int playheadPos = frameToPoint(Model->getPlayheadPos()) - m_scrollOffset.x();
+    int playheadPos = frameToPoint(getModel()->getPlayheadPos()) - m_scrollOffset.x();
     
     // 移动播放头到正确位置
     for (QPoint &p : kite) {
@@ -877,4 +877,9 @@ void BaseTimelineView::showClipProperty(const QModelIndex& index)
     //获取属性窗口
     clip->showPropertyWidget();
 
+}
+
+BaseTimeLineModel* BaseTimelineView::getModel() const
+{
+    return Model;
 }

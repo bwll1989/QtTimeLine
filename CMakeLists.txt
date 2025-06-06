@@ -54,6 +54,7 @@ set(INCLUDES
         Export.hpp
         Compiler.hpp
         OperatingSystem.hpp
+        TimeCodeDefines.h
 )
 # 源文件列表
 set(SOURCES

@@ -17,6 +17,7 @@
 #include <QJsonDocument>
 #include "BasePluginLoader.h"
 #include "Export.hpp"
+#include "TimeCodeDefines.h"
 struct TrackData {
     QString type;
     QString name;
@@ -139,6 +140,16 @@ public:
     }
     // 设置插件加载器
     void setPluginLoader(BasePluginLoader* loader) ;
+
+    virtual TimeCodeType getTimeCodeType() const
+    {
+        return TimeCodeType::PAL;
+    }
+
+    virtual void setTimeCodeType(TimeCodeType type)
+    {
+        m_timeCodeType=type;
+    }
 signals:
     //轨道移动信号
     void S_trackMoved(int oldIndex, int newIndex);
@@ -164,7 +175,7 @@ public slots:
     //停止播放槽函数
     virtual void onStopPlay();
     //时间轴长度变化槽函数
-    virtual void onUpdateTimeLineLength();
+    virtual qint64 onUpdateTimeLineLength();
     //设置播放头位置槽函数
     virtual void onSetPlayheadPos(int newPlayheadPos);
     //通过轨道索引和开始帧添加片段
@@ -202,6 +213,8 @@ private:
     qint64 m_lengthFrame = 0; // 总帧数
 
     qint64 m_clipNextId=0;
+
+    TimeCodeType m_timeCodeType=TimeCodeType::PAL;
 };
 #endif // TIMELINEMODEL_H
 

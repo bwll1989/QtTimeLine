@@ -93,6 +93,8 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
         switch (role) {
             case TimelineLengthRole:
                 return QVariant::fromValue(m_lengthFrame);
+            case TimeCodeTypeRole:
+                return QVariant::fromValue(getTimeCodeType());
             default:
                 return QVariant();
         }
@@ -134,6 +136,8 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
             //获取剪辑ID
             case TimelineRoles::ClipIdRole:
                 return QVariant::fromValue(clip->id());
+            case TimelineRoles::TimeCodeTypeRole:
+                return QVariant::fromValue(clip->getTimeCodeType());
             default:
                 return clip->data(role);
         }
@@ -243,6 +247,11 @@ bool BaseTimeLineModel::setData(const QModelIndex &index, const QVariant &value,
                 //            emit dataChanged(index, index);
                 return true;
             }
+            case TimelineRoles::ClipTypeRole:
+                {
+                    TimeCodeType type = static_cast<TimeCodeType>(value.toInt());
+                    clip->setTimeCodeType(type);
+                }
                 // 可以添加其他角色的处理
             default:
                 return false;
@@ -338,10 +347,11 @@ void BaseTimeLineModel::load(const QJsonObject &modelJson) {
                     clipJson["type"].toString(),
                     clipJson["start"].toInt()
                 );
-                
+				qDebug() << "Creating clip of type:" << clipJson["type"].toString();
+                clip->setTimeCodeType(getTimeCodeType());
                 if(clip) {
                     // 加载片段数据
-                    m_clipNextId = qMax(m_clipNextId,clipJson["ID"].toInt());
+                    m_clipNextId = qMax(m_clipNextId,clipJson["Id"].toInt()+1);
                     clip->load(clipJson);
                     
                     // 连接信号
@@ -366,7 +376,7 @@ void BaseTimeLineModel::load(const QJsonObject &modelJson) {
 
 }
 // 计算时间线长度
-void BaseTimeLineModel::onUpdateTimeLineLength()
+qint64 BaseTimeLineModel::onUpdateTimeLineLength()
 {
     // qDebug()<<"onTimelineLengthChanged";
     int max = 0;
@@ -378,8 +388,9 @@ void BaseTimeLineModel::onUpdateTimeLineLength()
     if(max!=m_lengthFrame){
         m_lengthFrame = max;
         emit S_LengthChanged(m_lengthFrame);
-    }
 
+    }
+    return m_lengthFrame;
 }
 
 void BaseTimeLineModel::onDeleteTrack(int trackIndex) {
@@ -390,12 +401,19 @@ void BaseTimeLineModel::onDeleteTrack(int trackIndex) {
     }
 
     beginRemoveRows(QModelIndex(), trackIndex, trackIndex); // 开始移除行
+    // 获取要删除的轨道指针
+    TrackData* track = m_tracks[trackIndex];
+    
     // 删除轨道上的所有片段
-    for (const auto& clip : m_tracks[trackIndex]->clips) {
+    for (const auto& clip : track->clips) {
         onDeleteClip(createIndex(0, 0, clip));
     }
+    
+    // 从容器中移除轨道
     m_tracks.erase(m_tracks.begin() + trackIndex);
-
+    
+    // 删除轨道对象，释放内存
+    delete track;
 
     endRemoveRows(); // 结束移除行
     emit S_trackDelete();
@@ -408,7 +426,7 @@ void BaseTimeLineModel::onAddTrack(const QString& type) {
     beginInsertRows(QModelIndex(), m_tracks.size(), m_tracks.size());
     auto track = new TrackData();
     track->type = type;
-    track->name = "Track " + QString::number(m_tracks.size());
+    track->name = type+" " + QString::number(m_tracks.size());
     m_tracks.push_back(std::move(track));
     endInsertRows();
     emit S_trackAdd();
@@ -438,6 +456,7 @@ void BaseTimeLineModel::onAddClip(int trackIndex, int startFrame) {
         qDebug() << "Failed to create clip model";
         return;
     }
+    newClip->setTimeCodeType(getTimeCodeType());
     // 连接信号,片段长度和位置变化时，模型向视图发送_clipGeometryChanged信号，通知视图更新
     connect(newClip, &AbstractClipModel::lengthChanged, [this]() {
         onUpdateTimeLineLength();
@@ -449,7 +468,7 @@ void BaseTimeLineModel::onAddClip(int trackIndex, int startFrame) {
     m_tracks[trackIndex]->clips.push_back(newClip);
     setData(createIndex(trackIndex, 0, newClip), QVariant::fromValue(m_clipNextId++), TimelineRoles::ClipIdRole);
     emit S_addClip();
-
+    onUpdateTimeLineLength();
 }
 
 
@@ -468,8 +487,12 @@ void BaseTimeLineModel::onDeleteClip(QModelIndex clipIndex){
 
     // 获取要删除的片段
     if(clipIndex.row() < track->clips.size()) {
+        AbstractClipModel* clip = track->clips[clipIndex.row()];
         // 从轨道中移除片段
         track->clips.erase(track->clips.begin() + clipIndex.row());
+        // 删除片段对象，释放内存
+        delete clip;
+
     }
 
     // 结束删除行
