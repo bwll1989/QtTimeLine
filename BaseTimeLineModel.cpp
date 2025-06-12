@@ -91,6 +91,8 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid()) {
         switch (role) {
+            case Qt::ToolTipRole:
+                return QVariant::fromValue(QString("Length:%1").arg(m_lengthFrame));
             case TimelineLengthRole:
                 return QVariant::fromValue(m_lengthFrame);
             case TimeCodeTypeRole:
@@ -108,7 +110,8 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
             return QVariant();
         }
         switch (role) {
-           
+            case Qt::ToolTipRole:
+                return QVariant::fromValue(QString(clip->type()+ ":%1 to %2").arg(clip->start()).arg(clip->end()));
             //获取剪辑模型
             case TimelineRoles::ClipModelRole:
                 return QVariant::fromValue(clip);
@@ -147,7 +150,7 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
             switch (role){
             //获取轨道工具提示
             case Qt::ToolTipRole:
-                return QVariant::fromValue("track " + QString::number(index.row()));
+                return QVariant::fromValue(track->name);
             //获取轨道类型
             case TrackTypeRole:
                 return QVariant::fromValue(TrackTypeString(track->type));

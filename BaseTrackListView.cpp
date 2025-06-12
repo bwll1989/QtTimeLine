@@ -145,12 +145,10 @@ void BaseTracklistView::mouseMoveEvent(QMouseEvent *event) {
         viewport()->update();
         return;
     }
-    
-    // 检查是否达到拖动启动距离
-    if ((event->pos() - m_dragStartPosition).manhattanLength() < QApplication::startDragDistance()) {
-        return;
-    }
-
+    // // 检查是否达到拖动启动距离
+    // if ((event->pos() - m_dragStartPosition).manhattanLength() < QApplication::startDragDistance()) {
+    //     return;
+    // }
     // 获取拖动起始位置的轨道索引
     QModelIndex index = indexAt(m_dragStartPosition);
     if (!index.isValid()) {
@@ -164,7 +162,18 @@ void BaseTracklistView::mouseMoveEvent(QMouseEvent *event) {
     // 存储源轨道索引
     mimeData->setData("application/x-track-index", QByteArray::number(index.row()));
     drag->setMimeData(mimeData);
-
+    // 创建预览图
+    QRect itemRect = visualRect(index);
+    QPixmap pixmap(parentWidget()->width(), itemRect.size().height());
+    QColor fillColor = trackSelectedColour;
+    fillColor.setAlphaF(0.8); // 设置50%透明度
+    pixmap.fill(fillColor);
+    // 计算鼠标相对于轨道项的位置
+    QPoint relativePos = m_dragStartPosition - itemRect.topLeft();
+    // 设置拖动时的预览图
+    drag->setPixmap(pixmap);
+    // 将热点设置为鼠标相对于轨道的位置
+    drag->setHotSpot(relativePos);
     // 开始拖动操作
     Qt::DropAction dropAction = drag->exec(Qt::MoveAction);
 }
@@ -366,9 +375,12 @@ void BaseTracklistView::drawTitle(QPainter *painter)
 
 void BaseTracklistView::dragEnterEvent(QDragEnterEvent *event) {
     // 检查是否是我们的自定义MIME类型
+
     if (event->mimeData()->hasFormat("application/x-track-index")) {
-        
+        // 设置移动鼠标形状
         event->acceptProposedAction();
+    } else {
+        unsetCursor();
     }
 }
 
@@ -382,6 +394,9 @@ void BaseTracklistView::dragMoveEvent(QDragMoveEvent *event) {
             // 只高亮显示目标位置，不进行选择
             m_hoverIndex = dropIndex;
             viewport()->update();
+        } else {
+            // 如果不在有效轨道上，设置禁止鼠标形状
+            QAbstractItemView::dragMoveEvent(event);
         }
     }
 }
@@ -392,7 +407,7 @@ void BaseTracklistView::dropEvent(QDropEvent *event) {
         QByteArray data = event->mimeData()->data("application/x-track-index");
         int sourceRow = data.toInt();
         int targetRow = indexAt(event->position().toPoint()).row();
-
+        
         // 只在源和目标不同且都有效时进行移动
         if (sourceRow != targetRow && targetRow >= 0 && sourceRow >= 0) {
             
@@ -412,6 +427,11 @@ void BaseTracklistView::dropEvent(QDropEvent *event) {
                 emit viewUpdate();  // 发送信号
             }
         }
+        // 恢复默认鼠标形状
+        unsetCursor();
         event->acceptProposedAction();
+    }else
+    {
+        QAbstractItemView::dropEvent(event);
     }
 }

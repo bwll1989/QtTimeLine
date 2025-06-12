@@ -30,18 +30,17 @@ public:
     m_end(start+100),
     m_clipPropertyWidget(nullptr),
     m_standardPropertyWidget(nullptr){
-    // 是否可调整大小
-    RESIZEABLE = true;
-    // 是否在片段中嵌入编辑器
-    EMBEDWIDGET = false;
-    // 是否显示边框
-    SHOWBORDER = true;
-    
-}
+        // 是否可调整大小
+        RESIZEABLE = true;
+        // 是否在片段中嵌入编辑器
+        EMBEDWIDGET = false;
+        // 是否显示边框
+        SHOWBORDER = true;
+    }
     /**
      * 析构函数
      */
-virtual~AbstractClipModel() 
+~AbstractClipModel() override 
 {
     // 关闭并删除属性窗口
     if (m_standardPropertyWidget && m_standardPropertyWidget->isVisible()) {
