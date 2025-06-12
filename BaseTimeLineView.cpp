@@ -24,6 +24,7 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         setAutoScroll(true);
         setAutoScrollMargin(5);
         setAcceptDrops(true);
+        // setDragEnabled(true);
 
         // 创建工具栏
         toolbar = new BaseTimelineToolbar(this);
@@ -471,117 +472,241 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
     viewport()->update();
 }
 
+/**
+ * 鼠标移动事件处理函数
+ * 处理鼠标移动时的各种交互行为
+ * @param event 鼠标事件对象
+ */
 void BaseTimelineView::mouseMoveEvent(QMouseEvent *event)
-    {
-        if (event->button() == Qt::RightButton) {
-            // 处理左键按下的情况
-            QAbstractItemView::mouseMoveEvent(event);
-            return;
-        }
-
-        if(mouseHeld){
-//            如果鼠标按住拖动
-            m_mouseEnd = event->pos();
-            if(!selectionModel()->selectedIndexes().isEmpty()&&m_mouseEnd.x()>=0){
-                QModelIndex clipIndex = selectionModel()->selectedIndexes().first();
-                AbstractClipModel* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
-
-                if(m_mouseUnderClipEdge==hoverState::NONE){
-                    moveSelectedClip(pointToFrame(m_mouseEnd.x()+m_mouseOffset.x()),m_mouseEnd.y()+m_mouseOffset.y());
-                }else if(clip && clip->isResizable()){
-                    if(m_mouseUnderClipEdge==hoverState::LEFT){
-                        int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                        getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
-                        // getModel()->onTimelineLengthChanged();
-                        updateEditorGeometries();
-                    }else if(m_mouseUnderClipEdge==hoverState::RIGHT){
-                        int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                        getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
-                        // getModel()->onTimelineLengthChanged();
-                        updateEditorGeometries();
-                    }
-                }
-                viewport()->update();
-            }
-            else{
-                movePlayheadToFrame(pointToFrame(std::max(0,m_mouseEnd.x() + m_scrollOffset.x())));
-                viewport()->update();
-            }
-
-            if(m_playheadSelected){
-                movePlayheadToFrame(pointToFrame(std::max(0,m_mouseEnd.x() + m_scrollOffset.x())));
-                viewport()->update();
-            }
-            return QAbstractItemView::mouseMoveEvent(event);
-       }
-
-        QPoint pos = event->pos();
-        m_hoverIndex = indexAt(event->pos());
-        QRect rect = visualRect(m_hoverIndex);
-        m_mouseUnderClipEdge = hoverState::NONE;
-       //5 is hitbox size + -5px
-       //see if item is a clip
-        if((m_hoverIndex.isValid() && m_hoverIndex.parent().isValid())){
-            AbstractClipModel* clip = static_cast<AbstractClipModel*>(m_hoverIndex.internalPointer());
-            if(clip && clip->isResizable()){
-                if(abs(pos.x() - rect.left())<=5){
-                    m_mouseUnderClipEdge=hoverState::LEFT;
-                }else if(abs(pos.x() - rect.right())<=5){
-                    m_mouseUnderClipEdge=hoverState::RIGHT;
-                }
-            }
-       }
-        if (m_mouseUnderClipEdge != hoverState::NONE) {
-           setCursor(Qt::SizeHorCursor);
-        }else {
-           unsetCursor();
-        }
-
-       QAbstractItemView::mouseMoveEvent(event);
+{
+    // 处理右键事件
+    if (event->button() == Qt::RightButton) {
+        QAbstractItemView::mouseMoveEvent(event);
+        return;
     }
+
+    // 处理鼠标按住拖动的情况
+    if (mouseHeld) {
+        handleMouseDrag(event);
+        return;
+    }
+
+    // 处理鼠标悬停状态
+    updateMouseHoverState(event);
+    updateCursorShape();
+    
+    QAbstractItemView::mouseMoveEvent(event);
+}
+
+/**
+ * 处理鼠标拖动操作
+ * @param event 鼠标事件对象
+ */
+void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
+{
+    m_mouseEnd = event->pos();
+    
+    // 处理播放头拖动
+    if (m_playheadSelected) {
+        movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
+        viewport()->update();
+        return;
+    }
+    
+    // 检查是否有选中的片段
+    QModelIndexList selectedIndexes = selectionModel()->selectedIndexes();
+    if (selectedIndexes.isEmpty() || m_mouseEnd.x() < 0) {
+        // 没有选中片段，移动播放头
+        movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
+        viewport()->update();
+        return;
+    }
+    
+    // 处理片段操作
+    QModelIndex clipIndex = selectedIndexes.first();
+    AbstractClipModel* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
+    
+    // 根据鼠标悬停状态执行不同操作
+    switch (m_mouseUnderClipEdge) {
+        case hoverState::CENTER:
+            // 移动片段
+            moveSelectedClip(pointToFrame(m_mouseEnd.x() + m_mouseOffset.x()), 
+                             m_mouseEnd.y() + m_mouseOffset.y());
+            break;
+            
+        case hoverState::LEFT:
+            // 调整片段左边界
+            if (clip && clip->isResizable()) {
+                int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
+                getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
+                updateEditorGeometries();
+            }
+            break;
+            
+        case hoverState::RIGHT:
+            // 调整片段右边界
+            if (clip && clip->isResizable()) {
+                int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
+                getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
+                updateEditorGeometries();
+            }
+            break;
+            
+        default:
+            break;
+    }
+    
+    viewport()->update();
+}
+
+/**
+ * 更新鼠标悬停状态
+ * @param event 鼠标事件对象
+ */
+void BaseTimelineView::updateMouseHoverState(QMouseEvent *event)
+{
+    QPoint pos = event->pos();
+    m_hoverIndex = indexAt(pos);
+    QRect rect = visualRect(m_hoverIndex);
+    
+    // 默认情况下无悬浮状态
+    m_mouseUnderClipEdge = hoverState::NONE;
+    
+    // 检查是否悬停在片段上
+    bool isValidClip = m_hoverIndex.isValid() && m_hoverIndex.parent().isValid();
+    if (!isValidClip) {
+        return;
+    }
+    
+    // 获取片段对象
+    AbstractClipModel* clip = static_cast<AbstractClipModel*>(m_hoverIndex.internalPointer());
+    if (!clip) {
+        return;
+    }
+    
+    // 设置悬停状态为中心
+    m_mouseUnderClipEdge = hoverState::CENTER;
+    
+    // 检查是否可调整大小的片段
+    if (clip->isResizable()) {
+        // 检查是否在左边缘
+        if (abs(pos.x() - rect.left()) <= 5) {
+            m_mouseUnderClipEdge = hoverState::LEFT;
+        }
+        // 检查是否在右边缘
+        else if (abs(pos.x() - rect.right()) <= 5) {
+            m_mouseUnderClipEdge = hoverState::RIGHT;
+        }
+    }
+}
+
+/**
+ * 根据鼠标悬停状态更新鼠标指针形状
+ */
+void BaseTimelineView::updateCursorShape()
+{
+    switch (m_mouseUnderClipEdge) {
+        case hoverState::LEFT:
+        case hoverState::RIGHT:
+            setCursor(Qt::SizeHorCursor);
+            break;
+            
+        case hoverState::CENTER:
+            setCursor(Qt::PointingHandCursor);
+            break;
+            
+        case hoverState::NONE:
+        default:
+            unsetCursor();
+            break;
+    }
+}
 
 void BaseTimelineView::dragEnterEvent(QDragEnterEvent *event)
 {
 
+        event->acceptProposedAction();
+        m_isSupportMedia = true;
+        // QAbstractItemView::dragEnterEvent(event);
 
 }
 
 void BaseTimelineView::dragMoveEvent(QDragMoveEvent *event)
 {
-    if(m_isDroppingMedia){
-        m_lastDragPos = event->position().toPoint();
-        event->acceptProposedAction();
-    }else{
+
+    m_lastDragPos = event->position().toPoint();
+
+    // 检查当前位置是否在轨道上
+    QModelIndex trackIndex;
+
+
+    // 排除工具栏和标尺区域
+    if (m_lastDragPos.y() < rulerHeight + toolbarHeight) {
+        event->ignore();
+        m_isSupportMedia = false;
+        return;
+    }
+
+    // 查找轨道
+    bool onTrack = false;
+    for (int i = 0; i < getModel()->rowCount(); i++) {
+        if (visualRect(getModel()->index(i, 0)).contains(m_lastDragPos)) {
+            trackIndex = getModel()->index(i, 0);
+            onTrack = true;
+            break;
+        }
+    }
+    if (onTrack) {
+
+        // 获取文件类型
+        QString fileType = isMimeAcceptable(event->mimeData());
+        // 获取轨道类型
+        QString trackType = getModel()->data(trackIndex, TimelineRoles::TrackTypeRole).toString();
+
+        // 判断文件类型和轨道类型是否匹配
+        if (!fileType.isEmpty() && fileType == trackType) {
+            // 类型匹配时接受拖动
+            m_isSupportMedia = true;
+            event->acceptProposedAction();
+
+        }
+        else {
+            // 类型不匹配时拒绝拖动
+            m_isSupportMedia = false;
+            event->ignore();
+            unsetCursor();
+        }
+
+    } else {
         QAbstractItemView::dragMoveEvent(event);
     }
 }
 
 void BaseTimelineView::dropEvent(QDropEvent *event)
 {
-    if(m_isDroppingMedia){
+    if(m_isSupportMedia){
         m_lastDragPos = event->position().toPoint();
         QModelIndex trackIndex;
-        BaseTimeLineModel* timelineModel = ((BaseTimeLineModel*)model());
         QRect rullerRect(-m_scrollOffset.x(),0,viewport()->width() + m_scrollOffset.x(),rulerHeight);
         /* If above or on the ruler drop on the first track*/
         if(m_lastDragPos.y()<0 || rullerRect.contains(m_lastDragPos)){
-            if(timelineModel->rowCount()>0)
+            if(getModel()->rowCount()>0)
                 trackIndex = model()->index(0, 0);
         }else{
             /* Find track at drop point */
-            for(int i = 0; i < timelineModel->rowCount(); i++){
-                if (visualRect(timelineModel->index(i, 0)).contains(m_lastDragPos)){
-                    trackIndex = timelineModel->index(i,0);
+            for(int i = 0; i < getModel()->rowCount(); i++){
+                if (visualRect(getModel()->index(i, 0)).contains(m_lastDragPos)){
+                    trackIndex = getModel()->index(i,0);
                 }
             }
         }
         /* If dropped out side of tracks */
         if(!trackIndex.isValid()){
-            trackIndex =QModelIndex();
+            return;
         }
         int pos = pointToFrame(m_lastDragPos.x());
 
-
+        getModel()->onAddClip(trackIndex.row(),pos);
         viewport()->update();
 
     }else{
@@ -882,4 +1007,38 @@ void BaseTimelineView::showClipProperty(const QModelIndex& index)
 BaseTimeLineModel* BaseTimelineView::getModel() const
 {
     return Model;
+}
+
+/**
+ * @brief 检查文件是否可接受
+ * @param QString filePath 文件路径
+ * @return bool 是否可接受
+ */
+QString BaseTimelineView::isMimeAcceptable(const QMimeData *Mime) const
+{
+    // 获取拖拽的文件路径
+
+    if (Mime->hasUrls())
+    {
+        QString filePath = Mime->urls().first().toLocalFile();
+        QFileInfo fileInfo(filePath);
+        QString suffix = fileInfo.suffix().toLower();
+        // 根据后缀判断文件类型
+        if(VideoTypes.contains(suffix, Qt::CaseInsensitive)) {
+            return "Video";
+        }
+        else if(AudioTypes.contains(suffix, Qt::CaseInsensitive)) {
+            return "Audio";
+        }
+        else if(ImageTypes.contains(suffix, Qt::CaseInsensitive)) {
+            return "Image";
+        }
+        else if(ControlTypes.contains(suffix, Qt::CaseInsensitive)) {
+            return "Control";
+        }
+    }else if (Mime->hasFormat("application/x-osc-address"))
+        {
+            return "Control";
+        }
+    return "";
 }

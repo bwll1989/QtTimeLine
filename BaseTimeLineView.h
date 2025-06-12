@@ -288,6 +288,27 @@ protected:
     virtual void onFrameChanged(qint64 frame);
     // 播放状态改变
     virtual void onPlaybackStateChanged(bool isPlaying);
+    // 判断文件对应的track类型
+
+    virtual QString isMimeAcceptable(const QMimeData *Mime) const;
+    // 在 protected 部分添加以下函数声明
+
+/**
+ * 处理鼠标拖动操作
+ * @param event 鼠标事件对象
+ */
+virtual void handleMouseDrag(QMouseEvent *event);
+
+/**
+ * 更新鼠标悬停状态
+ * @param event 鼠标事件对象
+ */
+virtual void updateMouseHoverState(QMouseEvent *event);
+
+/**
+ * 根据鼠标悬停状态更新鼠标指针形状
+ */
+virtual void updateCursorShape();
 protected slots:
     /**
      * 选择更改
@@ -339,7 +360,7 @@ protected:
     // 播放头是否选中
     bool m_playheadSelected = false;
     // 是否正在拖放媒体
-    bool m_isDroppingMedia = false;
+    bool m_isSupportMedia = false;
     // 鼠标最后拖动位置
     QPoint m_lastDragPos;
     // 鼠标悬停状态
@@ -350,3 +371,6 @@ protected:
 };
 
 #endif // TIMELINEVIEW_HPP
+
+
+
