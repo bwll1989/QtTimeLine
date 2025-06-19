@@ -55,6 +55,7 @@ set(INCLUDES
         Compiler.hpp
         OperatingSystem.hpp
         TimeCodeDefines.h
+        OSCMessage.h
 )
 # 源文件列表
 set(SOURCES

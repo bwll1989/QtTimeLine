@@ -18,6 +18,7 @@
 #include "BasePluginLoader.h"
 #include "Export.hpp"
 #include "TimeCodeDefines.h"
+using namespace QtTimeline;
 struct TrackData {
     QString type;
     QString name;
@@ -83,6 +84,10 @@ public:
      * @param int role 角色
      * @return bool 是否设置成功
      */
+    virtual QVariant clipData(ClipId clipID, TimelineRoles role) const ;
+
+    virtual bool setClipData(ClipId clipID, TimelineRoles role, QVariant value);
+
     virtual bool setData(const QModelIndex &index, const QVariant &value, int role) override;
     /**
      * 获取支持的拖放操作
@@ -189,7 +194,7 @@ public slots:
     //移动轨道槽函数
     virtual void onMoveTrack(int sourceRow, int targetRow);
 
-private:
+protected:
     // 查找片段所在轨道
     TrackData* findParentTrackOfClip(AbstractClipModel* clip) const ;
     // 查找轨道行
@@ -212,7 +217,7 @@ private:
 
     qint64 m_lengthFrame = 0; // 总帧数
 
-    qint64 m_clipNextId=0;
+    ClipId m_clipNextId=0;
 
     TimeCodeType m_timeCodeType=TimeCodeType::PAL;
 };

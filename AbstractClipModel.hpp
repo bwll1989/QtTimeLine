@@ -10,17 +10,26 @@
 #include <QVBoxLayout>
 #include <QSpinBox>
 #include <QLineEdit>
+#include <QMouseEvent>
+#include <QEvent>
+#include <QPushButton>
+#include <QSlider>
+#include <QSpinBox>
+#include <QLineEdit>
+#include <QMimeData>
 #include <QGroupBox>
 #include <QDialogButtonBox>
 #include <QLabel>
-#include <QDialog>
+#include <QApplication>
 #include <QPainter>
 #include <QRect>
 #include <QColor>
 #include <QFont>
 #include <TimeCodeDefines.h>
 #include "Export.hpp"
-
+#include <qDrag>
+#include "OSCMessage.h"
+using namespace QtTimeline;
 class NODE_TIMELINE_PUBLIC AbstractClipModel : public QObject {
     Q_OBJECT
 public:
@@ -36,6 +45,7 @@ public:
         EMBEDWIDGET = false;
         // 是否显示边框
         SHOWBORDER = true;
+
     }
     /**
      * 析构函数
@@ -50,9 +60,9 @@ public:
     
 }
 
-qint64 id() const { return m_id; }
+ClipId id() const { return m_id; }
 
-void setId(qint64 id) { m_id = id; }
+void setId(ClipId id) { m_id = id; }
     // Getters
     /**
      * 开始
@@ -167,7 +177,7 @@ virtual QJsonObject save() const {
     clipJson["start"] = m_start;
     clipJson["end"] = m_end;
     clipJson["type"] = m_type;
-    clipJson["Id"]=m_id;
+    clipJson["Id"]=static_cast<qint64>(m_id);
     return clipJson;
 }
     /**
@@ -249,10 +259,12 @@ virtual void initPropertyWidget(){
     
     // 开始帧显示
     auto startLabel = new QLabel(tr("开始帧:"), m_standardPropertyWidget);
+
     timeLayout->addWidget(startLabel, 0, 0);
     m_startFrameSpinBox=new QSpinBox(m_standardPropertyWidget);
     m_startFrameSpinBox->setRange(0, 9999999);
     m_startFrameSpinBox->setValue(start());
+    registerOSCControl("/start",m_startFrameSpinBox);
     connect(m_startFrameSpinBox, &QSpinBox::valueChanged, this, &AbstractClipModel::setStart);
     connect(this, &AbstractClipModel::timelinePositionChanged, this, [this](){
         m_startFrameSpinBox->blockSignals(true);
@@ -280,6 +292,7 @@ virtual void initPropertyWidget(){
     m_endFrameSpinBox=new QSpinBox(m_standardPropertyWidget);
     m_endFrameSpinBox->setRange(0, 9999999);
     m_endFrameSpinBox->setValue(end());
+    registerOSCControl("/end",m_endFrameSpinBox);
     connect(m_endFrameSpinBox, &QSpinBox::valueChanged, this, &AbstractClipModel::setEnd);
     connect(this, &AbstractClipModel::lengthChanged, this, [this](){
         m_endFrameSpinBox->blockSignals(true);
@@ -333,6 +346,52 @@ virtual void paint(QPainter* painter, const QRect& rect, bool selected) const {
     
 
 }
+/**
+ * 注册控件OSC地址和Widget指针
+ */
+virtual void registerOSCControl(const QString& oscAddress, QWidget* control)
+{
+    // 如果oscAddress不以"/"开头，则不注册
+    if (!oscAddress.startsWith("/")) return;
+    // 构建完整的OSC地址，自动给OSC地址添加前缀，包括节点ID
+    if (!control) return;
+    // 如果已存在相同地址的映射，先移除旧的
+    auto it = _OscMapping.find(oscAddress);
+    if (it != _OscMapping.end()) {
+        _OscMapping.erase(it);
+    }
+
+    // 添加新的映射
+    control->installEventFilter(this);
+    control->setMouseTracking(true);
+    _OscMapping[oscAddress] = control;
+}
+/**
+ * 注销控件OSC地址和Widget指针
+ */
+virtual void unregisterOSCControl(const QString& oscAddress)
+{
+    if (!oscAddress.startsWith("/")) return;
+    auto it = _OscMapping.find(oscAddress);
+    if (it != _OscMapping.end()) {
+        _OscMapping.erase(it);
+    }
+}
+/**
+ * 获取控件OSC地址和Widget指针
+ */
+virtual QWidget* getWidgetFromOSCAddress(const QString& oscAddress) const
+{
+    auto it = _OscMapping.find(oscAddress);
+    return it != _OscMapping.end() ? it->second : nullptr;
+}
+/**
+ * 获取OSC地址和控件的映射
+ */
+virtual std::unordered_map<QString, QWidget*> getOscMapping() const
+{
+    return _OscMapping;
+}
 Q_SIGNALS:
     /**
      * 数据变化信号
@@ -362,8 +421,14 @@ protected:
     bool EMBEDWIDGET;
     // 是否显示边框
     bool SHOWBORDER;
+    //控件OSC地址映射
+    std::unordered_map<QString, QWidget*> _OscMapping;
     // 片段ID
-    qint64 m_id;
+    ClipId m_id;
+    // 拖拽起始位置
+    QPoint dragStartPosition;
+    // 是否正在拖拽
+    bool isDragging = false;
     // 布局
     QVBoxLayout* m_layout;
     //开始帧
@@ -378,6 +443,124 @@ protected:
     QWidget* m_clipPropertyWidget;
     //时间码类型
     TimeCodeType m_timeCodeType;
+
+    void startDrag(QWidget* widget) 
+    {
+        // 找到对应的OSC地址
+        QString oscAddress;
+        for (const auto& pair : _OscMapping) {
+            if (pair.second == widget) {
+                oscAddress = pair.first;
+                break;
+            }
+        }
+        
+        if (oscAddress.isEmpty()) return;
+    
+        OSCMessage message;
+        message.address = "/timeline/" + QString::number(m_id) + oscAddress;
+        message.host = "127.0.0.1";
+        message.port = 8991;
+
+        // 获取控件的值
+        if (auto* button = qobject_cast<QAbstractButton*>(widget)) {
+            message.value = button->isChecked();
+            message.type = "Int";
+        } else if (auto* slider = qobject_cast<QAbstractSlider*>(widget)) {
+            message.value = slider->value();
+            message.type = "Int";
+        } else if (auto* spinBox = qobject_cast<QSpinBox*>(widget)) {
+            message.value = spinBox->value();
+            message.type = "Int";
+        } else if (auto* lineEdit = qobject_cast<QLineEdit*>(widget)) {
+            message.value = lineEdit->text();
+            message.type = "String";
+        } else if (auto* label = qobject_cast<QLabel*>(widget)) {
+            message.value = label->text();
+            message.type = "String";
+        } else {
+            message.value = QVariant();
+            message.type = "String";
+        }
+    
+        QByteArray itemData;
+        QDataStream dataStream(&itemData, QIODevice::WriteOnly);
+        dataStream << message.host << message.port << message.address << message.value<<message.type;
+    
+        QMimeData* mimeData = new QMimeData;
+        mimeData->setData("application/x-osc-address", itemData);
+    
+        QDrag* drag = new QDrag(widget);
+        drag->setMimeData(mimeData);
+        QPixmap pixmap(200, 30);
+        pixmap.fill(Qt::transparent);
+        
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        
+        // 绘制背景
+        QColor bgColor(40, 40, 40, 200);  // 半透明深灰色
+        painter.setBrush(bgColor);
+        painter.setPen(Qt::NoPen);
+        painter.drawRoundedRect(pixmap.rect(), 5, 5);  // 圆角矩形
+        // 绘制文本
+        painter.setPen(Qt::white);
+        QFont font = painter.font();
+        font.setPointSize(9);
+        painter.setFont(font);
+        QRect textRect = pixmap.rect().adjusted(30, 0, -8, 0);  // 图标右侧的文本区域
+        painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, message.address);
+    
+        // 设置拖拽预览
+        drag->setPixmap(pixmap);
+        drag->setHotSpot(QPoint(pixmap.width()/2, pixmap.height()/2));  // 热点在中心
+    
+        drag->exec(Qt::CopyAction);
+    }
+    
+    bool eventFilter(QObject* watched, QEvent* event) override
+{
+    // 检查watched是否是_OscMapping中的控件
+    auto it = std::find_if(_OscMapping.begin(), _OscMapping.end(),
+        [watched](const auto& pair) { return pair.second == watched; });
+    
+    if (it != _OscMapping.end()) {
+
+        QWidget* widget = it->second;
+        switch (event->type()) {
+            case QEvent::MouseButtonPress: {
+                QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+                if (mouseEvent->button() == Qt::LeftButton) {
+                    dragStartPosition = mouseEvent->pos();
+                    isDragging = true;
+                   
+                }
+                break;
+            }
+            case QEvent::MouseMove: {
+                 
+                if (!isDragging) break;
+               
+                QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+                if ((mouseEvent->pos() - dragStartPosition).manhattanLength() 
+                    >= QApplication::startDragDistance()) {
+                    
+                    startDrag(widget);
+                    isDragging = false;
+                    return true;
+                }
+                break;
+            }
+            case QEvent::MouseButtonRelease: {
+                isDragging = false;
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return false;
+}
     /**
 
      * 绘制背景

@@ -173,6 +173,92 @@ QVariant BaseTimeLineModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
+QVariant BaseTimeLineModel::clipData(ClipId clipID, TimelineRoles role) const
+{
+    QVariant result;
+    // 遍历所有轨道查找指定的片段
+    for (const auto& track : m_tracks) {
+        for (const auto& clip : track->clips) {
+            if (clip->id() == clipID) {
+                switch (role) {
+                    case ClipIdRole:
+                        result=clip->id();
+                        break;
+                    case ClipInRole:
+                        result=clip->start();
+                        break;
+                    case ClipOutRole:
+                        result=clip->end();
+                        break;
+                    case ClipLengthRole:
+                        result=clip->end() - clip->start();
+                        break;
+                    case ClipTypeRole:
+                        result=clip->type();
+                        break;
+                    case ClipShowWidgetRole:
+                        result=clip->isEmbedWidget();
+                        break;
+                    // case ClipResizableRole:
+                    //     return QVariant::fromValue(clip->isResizeable());
+                    case ClipShowBorderRole:
+                        result=clip->isShowBorder();
+                        break;
+                    case ClipModelRole:
+                        result= QVariant::fromValue(clip);
+                        break;
+                    case ClipOscWidgetsRole:
+                        result=QVariant::fromValue(clip->getOscMapping());
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+bool BaseTimeLineModel::setClipData(ClipId clipID, TimelineRoles role, QVariant value)
+{
+    // 遍历所有轨道查找指定的片段
+    for (auto& track : m_tracks) {
+        for (auto& clip : track->clips) {
+            if (clip->id() == clipID) {
+                bool success = false;
+                switch (role) {
+                    case ClipInRole:
+                        clip->setStart(value.toInt());
+                        success = true;
+                        break;
+                    case ClipOutRole:
+                        clip->setEnd(value.toInt());
+                        success = true;
+                        break;
+                    case ClipShowWidgetRole:
+                        clip->setEmbedWidget(value.toBool());
+                        success = true;
+                        break;
+                    // case ClipResizableRole:
+                    //     clip->setResizeable(value.toBool());
+                    //     success = true;
+                    //     break;
+                    case ClipShowBorderRole:
+                        clip->setShowBorder(value.toBool());
+                        success = true;
+                        break;
+                }
+                if (success) {
+                    // 发出数据改变信号
+                    emit dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void BaseTimeLineModel::onStartPlay(){
    qDebug()<<"onStartPlay";
 }
@@ -354,7 +440,7 @@ void BaseTimeLineModel::load(const QJsonObject &modelJson) {
                 clip->setTimeCodeType(getTimeCodeType());
                 if(clip) {
                     // 加载片段数据
-                    m_clipNextId = qMax(m_clipNextId,clipJson["Id"].toInt()+1);
+                    m_clipNextId = qMax(static_cast<qint64>(m_clipNextId),clipJson["Id"].toInt()+1);
                     clip->load(clipJson);
                     
                     // 连接信号

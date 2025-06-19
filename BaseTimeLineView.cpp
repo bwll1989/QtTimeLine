@@ -999,9 +999,8 @@ void BaseTimelineView::showClipProperty(const QModelIndex& index)
     //获取片段
     AbstractClipModel* clip = static_cast<AbstractClipModel*>(index.internalPointer());
     if (!clip) return;
-    //获取属性窗口
-    clip->showPropertyWidget();
-
+        //获取属性窗口
+        clip->showPropertyWidget();
 }
 
 BaseTimeLineModel* BaseTimelineView::getModel() const

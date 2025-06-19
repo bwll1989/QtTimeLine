@@ -56,7 +56,8 @@ QWidget* clipPropertyWidget() override{
     playLayout->setContentsMargins(0, 0, 0, 0);
     // 测试按钮
     auto* sendButton = new QPushButton("测试发送", m_editor);
-
+    sendButton->setCheckable(true);
+    registerOSCControl("/button",sendButton);
     playLayout->addWidget(sendButton);
     mainLayout->addWidget(playGroup);
     return m_editor;
