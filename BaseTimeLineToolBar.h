@@ -6,7 +6,7 @@
 #include <QSpinBox>
 #include <QLabel>
 #include "TimeLineStyle.h"
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 class NODE_TIMELINE_PUBLIC BaseTimelineToolbar : public QToolBar {
     Q_OBJECT
 public:

@@ -348,8 +348,8 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         }
         painter.drawRect(visualRect(trackIndex));
         itemDelegateForIndex(trackIndex)->paint(&painter,option,trackIndex);
-        
-        
+
+
     }
 
     drawTitle(&painter);
@@ -378,7 +378,10 @@ void BaseTracklistView::dragEnterEvent(QDragEnterEvent *event) {
 
     if (event->mimeData()->hasFormat("application/x-track-index")) {
         // 设置移动鼠标形状
+
         event->acceptProposedAction();
+
+        // unsetCursor();
     } else {
         unsetCursor();
     }
@@ -387,7 +390,6 @@ void BaseTracklistView::dragEnterEvent(QDragEnterEvent *event) {
 void BaseTracklistView::dragMoveEvent(QDragMoveEvent *event) {
     if (event->mimeData()->hasFormat("application/x-track-index")) {
         event->acceptProposedAction();
-        
         // 获取当前拖动位置的轨道索引
         QModelIndex dropIndex = indexAt(event->position().toPoint());
         if (dropIndex.isValid()) {
@@ -397,6 +399,7 @@ void BaseTracklistView::dragMoveEvent(QDragMoveEvent *event) {
         } else {
             // 如果不在有效轨道上，设置禁止鼠标形状
             QAbstractItemView::dragMoveEvent(event);
+
         }
     }
 }
@@ -427,8 +430,7 @@ void BaseTracklistView::dropEvent(QDropEvent *event) {
                 emit viewUpdate();  // 发送信号
             }
         }
-        // 恢复默认鼠标形状
-        unsetCursor();
+
         event->acceptProposedAction();
     }else
     {

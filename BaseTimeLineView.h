@@ -15,7 +15,7 @@
 #include "BaseTrackDelegate.h"
 #include "BaseTimeLineToolBar.h"
 #include "QMenu"
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 // TimelineView类继承自QAbstractItemView
 class NODE_TIMELINE_PUBLIC BaseTimelineView : public QAbstractItemView
 {

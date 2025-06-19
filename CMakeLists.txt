@@ -51,7 +51,7 @@ set(INCLUDES
         BaseTimeLineWidget.h
         BaseTrackDelegate.h
         BaseTrackListView.h
-        Export.hpp
+        TimelineExports.hpp
         Compiler.hpp
         OperatingSystem.hpp
         TimeCodeDefines.h

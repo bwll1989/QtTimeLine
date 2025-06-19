@@ -16,7 +16,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include "BasePluginLoader.h"
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 #include "TimeCodeDefines.h"
 using namespace QtTimeline;
 struct TrackData {

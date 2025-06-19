@@ -5,7 +5,7 @@
 #include <QtGlobal>
 #include <QTime>
 #include <QtCore/QMetaObject>
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 namespace QtTimeline
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)

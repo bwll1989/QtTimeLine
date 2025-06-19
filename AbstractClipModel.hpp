@@ -26,7 +26,7 @@
 #include <QColor>
 #include <QFont>
 #include <TimeCodeDefines.h>
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 #include <qDrag>
 #include "OSCMessage.h"
 using namespace QtTimeline;

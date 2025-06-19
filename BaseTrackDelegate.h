@@ -11,7 +11,7 @@
 #include "QLabel"
 #include "BaseTimeLineModel.h"
 #include "TimeLineStyle.h"
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 class NODE_TIMELINE_PUBLIC BaseTrackDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT

@@ -14,7 +14,7 @@
 #include "TimeLineStyle.h"
 #include <QTimer>
 #include <QMessageBox>
-#include "Export.hpp"
+#include "TimelineExports.hpp"
 class NODE_TIMELINE_PUBLIC BaseTracklistView : public QAbstractItemView
 {
     Q_OBJECT
@@ -118,33 +118,35 @@ protected:
      * 鼠标按下事件
      * @param QMouseEvent *event 鼠标事件
      */
-    virtual void mousePressEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+
+
     /**
      * 鼠标移动事件
      * @param QMouseEvent *event 鼠标事件
      */
-    virtual void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     /**
      * 离开事件
      * @param QEvent *event 事件
      */
-    virtual void leaveEvent(QEvent *event) override;
+    void leaveEvent(QEvent *event) override;
     /**
      * 调整事件
      * @param QResizeEvent *event 调整事件
      */
-    virtual void resizeEvent(QResizeEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     /**
      * 显示事件
      * @param QShowEvent *event 显示事件
      */
-    virtual void showEvent(QShowEvent *event) override;
+    void showEvent(QShowEvent *event) override;
     /**
      * 滚动内容
      * @param int dx 水平滚动
      * @param int dy 垂直滚动
      */
-    virtual void scrollContentsBy(int dx, int dy) override;
+    void scrollContentsBy(int dx, int dy) override;
     /**
      * 获取项目矩形
      * @param QModelIndex index 索引
@@ -157,12 +159,12 @@ protected:
      * @param QEvent *event 事件
      * @return bool 是否过滤
      */
-    virtual bool eventFilter(QObject *watched, QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     /**
      * 上下文菜单事件
      * @param QContextMenuEvent* event 上下文菜单事件
      */
-    virtual void contextMenuEvent(QContextMenuEvent* event) override ;
+    void contextMenuEvent(QContextMenuEvent* event) override ;
 protected slots:
     /**
      * 删除轨道

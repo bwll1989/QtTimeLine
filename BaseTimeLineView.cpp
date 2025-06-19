@@ -357,7 +357,7 @@ void BaseTimelineView::mouseReleaseEvent(QMouseEvent *event)
     mouseHeld = false;
     m_playheadSelected = false;
     m_mouseEnd = event->pos();
-
+    updateCursorShape();
     //pressed outside of selection
     QAbstractItemView::mouseReleaseEvent(event);
 }
@@ -448,6 +448,7 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
     QRect playheadHitBox2(QPoint(playheadPos-playheadwidth,-playheadheight + rulerHeight),QPoint(playheadPos+playheadwidth,rulerHeight));
     // 如果点击在播放头上
     if(playheadHitBox.contains(m_mouseStart) || playheadHitBox2.contains(m_mouseStart)) {
+
         m_playheadSelected = true;
         return;
     }
@@ -461,6 +462,7 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
     if(item.isValid() && item.parent().isValid()) {
         // 设置当前项和选择
         selectionModel()->setCurrentIndex(item, QItemSelectionModel::ClearAndSelect);
+        setCursor(Qt::ClosedHandCursor);
         m_mouseOffset.setX(frameToPoint(item.data(TimelineRoles::ClipInRole).toInt()) - m_mouseStart.x());
     }
     // else {
@@ -607,14 +609,14 @@ void BaseTimelineView::updateCursorShape()
 {
     switch (m_mouseUnderClipEdge) {
         case hoverState::LEFT:
+            setCursor(Qt::SizeHorCursor);
+            break;
         case hoverState::RIGHT:
             setCursor(Qt::SizeHorCursor);
             break;
-            
         case hoverState::CENTER:
-            setCursor(Qt::PointingHandCursor);
+            setCursor(Qt::OpenHandCursor);
             break;
-            
         case hoverState::NONE:
         default:
             unsetCursor();
