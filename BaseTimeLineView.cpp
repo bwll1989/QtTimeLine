@@ -28,9 +28,9 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
 
         // 创建工具栏
         toolbar = new BaseTimelineToolbar(this);
-        toolbar->setFixedHeight(toolbarHeight);
+        toolbar->setFixedHeight(toolbarHeight-4);
         // 设置工具栏位置
-        toolbar->move(0, 0);
+        toolbar->move(0, 2);
         
         // 连接工具栏播放按钮信号
         connect(toolbar, &BaseTimelineToolbar::playClicked, [this]() {

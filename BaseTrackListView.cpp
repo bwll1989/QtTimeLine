@@ -62,7 +62,7 @@ void BaseTracklistView::contextMenuEvent(QContextMenuEvent* event) {
         QMenu contextMenu(this);
         //qDebug()<<"contextMenuEvent";
         // Add track creation submenu
-        QMenu* addTrackMenu = contextMenu.addMenu("Add Track");
+        QMenu* addTrackMenu = contextMenu.addMenu("Add Track      ");
         
         // Get available track types from BasePluginLoader
         QStringList availableTypes = Model->getPluginLoader()->getAvailableTypes();
@@ -129,9 +129,7 @@ BaseTimeLineModel* BaseTracklistView::getModel()
  */
 void BaseTracklistView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) {
     QAbstractItemView::selectionChanged(selected, deselected);
-    // for (const QModelIndex &index : selected.indexes()) {
-    //     qDebug() << index.row();
-    // }
+
     viewport()->update();
 }
 
@@ -327,8 +325,7 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
     painter.save();  // 保存状态
     painter.setRenderHint(QPainter::Antialiasing,true);
     painter.setBrush(QBrush(bgColour));
-    painter.drawRect(event->rect());
-    painter.setBrush(QBrush(rulerColour));
+
     // Draw tracklist
     int viewportWidth = viewport()->width();
     QStyleOptionViewItem option;
@@ -346,10 +343,11 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         else{
             painter.setBrush(QBrush(trackColour));
         }
+        // painter.drawLine(visualRect(trackIndex).bottomLeft(),visualRect(trackIndex).bottomRight());
+        // itemDelegate(trackIndex)->paint(&painter, option, trackIndex);
+       
         painter.drawRect(visualRect(trackIndex));
-        itemDelegateForIndex(trackIndex)->paint(&painter,option,trackIndex);
-
-
+      
     }
 
     drawTitle(&painter);
@@ -358,17 +356,16 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
 void BaseTracklistView::drawTitle(QPainter *painter)
 {
     painter->setBrush(QBrush(bgColour));
-    painter->drawRect(0,0,viewport()->width(),rulerHeight+toolbarHeight);
-
-    QRect ruler(0,  0, viewport()->width(), rulerHeight+toolbarHeight);
+    QRect rect(0,  0, viewport()->width(), rulerHeight+toolbarHeight);
+    painter->drawRect(rect);
     painter->setPen(fontColor);
     QFont font;
     font.setPixelSize(fontSize);
     painter->setFont(font);
     if(Model->getTimeDisplayFormat()==TimedisplayFormat::TimeCodeFormat){
-        painter->drawText(ruler,Qt::AlignCenter,QString("%1").arg(Model->getPlayheadPos()));
+        painter->drawText(rect,Qt::AlignCenter,QString("%1").arg(Model->getPlayheadPos()));
     }else{
-        painter->drawText(ruler,Qt::AlignCenter,QString("00:%1").arg(Model->getPlayheadPos()));
+        painter->drawText(rect,Qt::AlignCenter,QString("00:%1").arg(Model->getPlayheadPos()));
     }
     painter->restore();  // 恢复状态
 }

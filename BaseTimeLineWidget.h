@@ -47,7 +47,7 @@ public:
     //主布局
     QVBoxLayout *mainlayout;
     //分割器
-    QSplitter* splitter = new QSplitter(Qt::Horizontal,this);
+    QSplitter* splitter ;
     //模型
     BaseTimeLineModel* model;
     //视图

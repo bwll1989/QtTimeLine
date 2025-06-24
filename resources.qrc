@@ -16,5 +16,6 @@
     <file>icons/stop.png</file>
     <file>icons/settings.png</file>
     <file>icons/pause.png</file>
+    <file>icons/DefaultDark.qss</file>
   </qresource>
 </RCC>

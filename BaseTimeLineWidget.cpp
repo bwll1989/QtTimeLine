@@ -28,35 +28,34 @@ void BaseTimelineWidget::load(const QJsonObject& json) {
 }
 
 void BaseTimelineWidget::createComponents() {
-    // 创建工具栏
+    // 创建视图组件
     view = new BaseTimelineView(model, this);
     tracklist = new BaseTracklistView(model, this);
+    
+    // 创建水平分割器
+    splitter = new QSplitter(Qt::Horizontal, this);
+    splitter->addWidget(tracklist);
+    splitter->addWidget(view);
+    splitter->setHandleWidth(0);
+    splitter->setMouseTracking(true);
+    splitter->setSizes({200, 900});
     
     // 创建主布局
     mainlayout = new QVBoxLayout(this);
     mainlayout->setContentsMargins(0, 0, 0, 0);
     mainlayout->setSpacing(0);
     
-    // // 创建水平分割器
-    // auto* horizontalSplitter = new QSplitter(Qt::Horizontal, this);
+    // 创建主容器并设置布局
+    auto* mainWidget = new QWidget(this);
+    auto* mainWidgetLayout = new QVBoxLayout(mainWidget);
+    mainWidgetLayout->setContentsMargins(0, 0, 0, 0);
+    mainWidgetLayout->setSpacing(0);
+    mainWidgetLayout->addWidget(splitter);
     
-    // 创建左侧面板（轨道列表和时间线）
-    auto* mainwidget = new QWidget(this);
-    auto* mainLayout = new QVBoxLayout(mainwidget);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    // 添加到主布局
+    mainlayout->addWidget(mainWidget);
     
-    splitter->addWidget(tracklist);
-    splitter->addWidget(view);
-    splitter->setHandleWidth(0);
-    QList<int> sizes({200,900});
-    splitter->setMouseTracking(true);
-    splitter->setSizes(sizes);
-    mainLayout->addWidget(splitter);
-     // 连接轨道列表竖向滚动到时间线竖向滚动
-    qDebug() << "showSettingsDialog";
-    qDebug() << "view valid:" << (view != nullptr);
-    qDebug() << "toolbar valid:" << (view && view->toolbar != nullptr);
+    // 连接信号和槽
     connect(tracklist, &BaseTracklistView::trackScrolled, view, &BaseTimelineView::onScroll);
     // 连接模型轨道变化到时间线更新视图
 //    connect(model, &BaseTimelineModel::S_trackCountChanged, view, &BaseTimelineView::onUpdateViewport);
@@ -65,14 +64,6 @@ void BaseTimelineWidget::createComponents() {
     // 连接工具栏设置按钮到显示设置对话框
 
     connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
-    // 添加到水平分割器
-    // horizontalSplitter->addWidget(leftPanel);
-    
-    // 设置分割器大小
-    // horizontalSplitter->setSizes({700, 300});  // 左侧面板和属性面板的初始大小比例
-    
-    // 添加到主布局
-    mainlayout->addWidget(mainwidget);
 
     // 连接模型的帧图像更新信号到舞台
 //    connect(model, &BaseTimelineModel::S_frameImageUpdated,

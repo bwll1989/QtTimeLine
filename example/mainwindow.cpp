@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
     //         [this]() {
     //             ui->actionShowVideoPlayer->setChecked(false);
     //         });
+
 }
 
 void MainWindow::onLoadScene()

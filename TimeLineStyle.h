@@ -104,9 +104,9 @@ inline int ClipBorderWidth = 2; //clip选中边框宽度
 
 inline QColor trackColour = QColor(53, 53, 53); //轨道颜色
 
-inline QColor trackSelectedColour = trackColour.darker(180); //轨道选中颜色
+inline QColor trackSelectedColour = QColor("#0078d4"); //轨道选中颜色
 
-inline QColor trackHoverColour = trackColour.darker(80); //轨道悬停颜色
+inline QColor trackHoverColour = trackSelectedColour.lighter(120); //轨道悬停颜色
 
 const QColor propertyBgColour = bgColour;    // 属性面板使用相同的背景色
 
