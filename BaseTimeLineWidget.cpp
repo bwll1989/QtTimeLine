@@ -63,7 +63,7 @@ void BaseTimelineWidget::createComponents() {
     connect(tracklist, &BaseTracklistView::viewUpdate, view, &BaseTimelineView::onUpdateViewport);
     // 连接工具栏设置按钮到显示设置对话框
 
-    connect(view->toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
+    connect(view->m_toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
 
     // 连接模型的帧图像更新信号到舞台
 //    connect(model, &BaseTimelineModel::S_frameImageUpdated,

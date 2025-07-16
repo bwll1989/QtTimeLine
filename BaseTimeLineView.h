@@ -49,7 +49,7 @@ public:
      */
     virtual void showClipProperty(const QModelIndex& index);
     // 时间线工具栏
-    BaseTimelineToolbar* toolbar;
+    BaseTimelineToolbar* m_toolbar;
     // 时间线定时器
 signals:
     /**
@@ -309,6 +309,9 @@ virtual void updateMouseHoverState(QMouseEvent *event);
  * 根据鼠标悬停状态更新鼠标指针形状
  */
 virtual void updateCursorShape();
+
+void setToolbar(BaseTimelineToolbar* toolbar);
+
 protected slots:
     /**
      * 选择更改

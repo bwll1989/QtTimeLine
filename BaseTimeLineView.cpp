@@ -26,30 +26,8 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         setAcceptDrops(true);
         // setDragEnabled(true);
 
-        // 创建工具栏
-        toolbar = new BaseTimelineToolbar(this);
-        toolbar->setFixedHeight(toolbarHeight-4);
-        // 设置工具栏位置
-        toolbar->move(0, 2);
-        
-        // 连接工具栏播放按钮信号
-        connect(toolbar, &BaseTimelineToolbar::playClicked, [this]() {
-            getModel()->onStartPlay();
-        });
-        // 连接工具栏停止按钮信号
-        connect(toolbar, &BaseTimelineToolbar::stopClicked, [this]() {
-            getModel()->onStopPlay();
-        });
-        // 连接工具栏暂停按钮信号
-        connect(toolbar, &BaseTimelineToolbar::pauseClicked, [this]() {
-            getModel()->onPausePlay();
-        });
-        connect(toolbar,&BaseTimelineToolbar::prevFrameClicked,[this](){
-           getModel()->onSetPlayheadPos(qMax(0,getModel()->getPlayheadPos()-1));
-        });
-        connect(toolbar,&BaseTimelineToolbar::nextFrameClicked,[this](){
-            getModel()->onSetPlayheadPos(getModel()->getPlayheadPos()+1);
-        });
+    // 连接循环播放信号
+
         // 当视频窗口关闭时，更新工具栏按钮状态
         connect(Model,&BaseTimeLineModel::S_clipGeometryChanged,this,&BaseTimelineView::onUpdateViewport);
         connect(Model, &BaseTimeLineModel::S_trackAdd, this, &BaseTimelineView::onUpdateViewport);
@@ -59,47 +37,72 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         connect(Model, &BaseTimeLineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
 
         installEventFilter(this);
-
-
-
-        // 连接移动剪辑按钮信号
-        connect(toolbar, &BaseTimelineToolbar::moveClipClicked, [this](int dx) {
-            moveSelectedClip(dx,0,false);
-        });
-        // 连接删除剪辑按钮信号
-        connect(toolbar, &BaseTimelineToolbar::deleteClipClicked, [this]() {
-            if(selectionModel()->selectedIndexes().isEmpty())
-                return;
-
-            QModelIndex currentIndex = selectionModel()->currentIndex();
-            getModel()->onDeleteClip(currentIndex);
-
-            // 清除选择并发送 nullptr
-            selectionModel()->clearSelection();
-            emit currentClipChanged(nullptr);
-
-            viewport()->update();
-        });
-
-        // 连接放大按钮信号
-        connect(toolbar, &BaseTimelineToolbar::zoomInClicked, [this]() {
-
-           setScale(1.1);
-        });
-        // 连接缩小按钮信号
-        connect(toolbar, &BaseTimelineToolbar::zoomOutClicked, [this]() {
-            setScale(0.9);
-        });
-        // 连接循环播放信号
+        setToolbar(new BaseTimelineToolbar(this));
 
     }
 
 BaseTimelineView::~BaseTimelineView()
 {
-    delete toolbar;
+    delete m_toolbar;
     // delete timer;
 
 }
+
+void BaseTimelineView::setToolbar(BaseTimelineToolbar* new_toolbar)
+{
+    m_toolbar=new_toolbar;
+    m_toolbar->setFixedHeight(toolbarHeight-4);
+    // 设置工具栏位置
+    m_toolbar->move(0, 2);
+
+    // 连接工具栏播放按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::playClicked, [this]() {
+        getModel()->onStartPlay();
+    });
+    // 连接工具栏停止按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::stopClicked, [this]() {
+        getModel()->onStopPlay();
+    });
+    // 连接工具栏暂停按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::pauseClicked, [this]() {
+        getModel()->onPausePlay();
+    });
+    connect(m_toolbar,&BaseTimelineToolbar::prevFrameClicked,[this](){
+       getModel()->onSetPlayheadPos(qMax(0,getModel()->getPlayheadPos()-1));
+    });
+    connect(m_toolbar,&BaseTimelineToolbar::nextFrameClicked,[this](){
+        getModel()->onSetPlayheadPos(getModel()->getPlayheadPos()+1);
+    });
+    // 连接移动剪辑按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::moveClipClicked, [this](int dx) {
+        moveSelectedClip(dx,0,false);
+    });
+    // 连接删除剪辑按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::deleteClipClicked, [this]() {
+        if(selectionModel()->selectedIndexes().isEmpty())
+            return;
+
+        QModelIndex currentIndex = selectionModel()->currentIndex();
+        getModel()->onDeleteClip(currentIndex);
+
+        // 清除选择并发送 nullptr
+        selectionModel()->clearSelection();
+        emit currentClipChanged(nullptr);
+
+        viewport()->update();
+    });
+
+    // 连接放大按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::zoomInClicked, [this]() {
+
+       setScale(1.1);
+    });
+    // 连接缩小按钮信号
+    connect(m_toolbar, &BaseTimelineToolbar::zoomOutClicked, [this]() {
+        setScale(0.9);
+    });
+}
+
 QRect BaseTimelineView::visualRect(const QModelIndex &index) const
 {
 
@@ -988,7 +991,7 @@ void BaseTimelineView::onFrameChanged(qint64 frame)
 
 void BaseTimelineView::onPlaybackStateChanged(bool isPlaying)
 {
-    toolbar->setPlaybackState(isPlaying);
+    m_toolbar->setPlaybackState(isPlaying);
     
 }
 

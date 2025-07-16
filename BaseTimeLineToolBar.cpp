@@ -4,7 +4,8 @@
 #include <QApplication>
 
 BaseTimelineToolbar::BaseTimelineToolbar(QWidget* parent)
-    : QToolBar(parent)
+    : QToolBar(parent),
+    _OscMapping(std::make_shared<std::unordered_map<QString, QAction*>>())
 {
     createActions();
     setupUI();
@@ -135,19 +136,33 @@ void BaseTimelineToolbar::setupUI()
 {
     // 添加动作到工具栏
     addAction(m_previousMediaAction);
+
+    registerOSCControl("/previousMedia",m_previousMediaAction);
     addAction(m_previousFrameAction);
+    registerOSCControl("/previousFrame",m_previousFrameAction);
     addAction(m_playAction);
+    registerOSCControl("/play",m_playAction);
     addAction(m_stopAction);
+    registerOSCControl("/stop",m_stopAction);
     addAction(m_nextFrameAction);
+    registerOSCControl("/nextFrame",m_nextFrameAction);
     addAction(m_nextMediaAction);
+    registerOSCControl("/nextMedia",m_nextMediaAction);
     addAction(m_fullscreenAction);
+    registerOSCControl("/fullscreen",m_fullscreenAction);
     addAction(m_settingsAction);
+    registerOSCControl("/settings",m_settingsAction);
     addAction(m_loopAction);
+    registerOSCControl("/loop",m_loopAction);
     addAction(m_outputAction);
+    registerOSCControl("/output",m_outputAction);
     addSeparator();
     addAction(m_moveClipLeftAction);
+    registerOSCControl("/moveClipLeft",m_moveClipLeftAction);
     addAction(m_moveClipRightAction);
+    registerOSCControl("/moveClipRight",m_moveClipRightAction);
     addAction(m_deleteClipAction);
+    registerOSCControl("/deleteClip",m_deleteClipAction);
     addAction(m_zoomInAction);
     addAction(m_zoomOutAction);
     // 设置工具栏样式
@@ -160,4 +175,109 @@ void BaseTimelineToolbar::setPlaybackState(bool isPlaying)
     m_isPlaying = isPlaying;
     m_playAction->setIcon(QIcon(m_isPlaying ? ":/icons/icons/pause.png" : ":/icons/icons/play.png"));
     m_playAction->setToolTip(m_isPlaying ? tr("Pause") : tr("Play"));
+}
+
+bool BaseTimelineToolbar::eventFilter(QObject *watched, QEvent *event)
+
+{
+    QToolButton* btn = qobject_cast<QToolButton*>(watched);
+    if (!btn)
+        return false;
+
+    QAction* action = btn->defaultAction();
+    if (!action)
+        return false;
+
+    // 判断 action 是否在 _OscMapping 里
+    auto it = std::find_if(_OscMapping->begin(), _OscMapping->end(),
+        [action](const auto& pair) { return pair.second == action; });
+    if (it == _OscMapping->end())
+        return false;
+
+    switch (event->type()) {
+    case QEvent::MouseButtonPress: {
+            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton && (mouseEvent->modifiers() & Qt::ControlModifier)) {
+                dragStartPosition = mouseEvent->pos();
+                isDragging = true;
+            }
+            break;
+    }
+    case QEvent::MouseMove: {
+            if (!isDragging) break;
+            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            if ((mouseEvent->pos() - dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+                startDrag(action);
+                isDragging = false;
+                return true;
+            }
+            break;
+    }
+    case QEvent::MouseButtonRelease: {
+            isDragging = false;
+            break;
+    }
+    default:
+        break;
+    }
+    return false;
+}
+
+void BaseTimelineToolbar::startDrag(QAction* widget)
+{
+    // 找到对应的OSC地址
+    QString oscAddress;
+    for (const auto& pair : *_OscMapping) {
+        if (pair.second == widget) {
+            oscAddress = pair.first;
+            break;
+        }
+    }
+
+    if (oscAddress.isEmpty()) return;
+
+    OSCMessage message;
+    message.address = "/timeline/toolbar" + oscAddress;
+    message.host = "127.0.0.1";
+    message.port = 8991;
+
+    // 获取控件的值
+
+    message.value = widget->isChecked();
+    message.type = "Int";
+
+
+    QByteArray itemData;
+    QDataStream dataStream(&itemData, QIODevice::WriteOnly);
+    dataStream << message.host << message.port << message.address << message.value<<message.type;
+
+    QMimeData* mimeData = new QMimeData;
+    mimeData->setData("application/x-osc-address", itemData);
+
+    QDrag* drag = new QDrag(widget);
+    drag->setMimeData(mimeData);
+    QPixmap pixmap(200, 30);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 绘制背景
+    QColor bgColor(40, 40, 40, 200);  // 半透明深灰色
+    painter.setBrush(bgColor);
+    painter.setPen(Qt::NoPen);
+    painter.drawRoundedRect(pixmap.rect(), 5, 5);  // 圆角矩形
+    // 绘制文本
+    painter.setPen(Qt::white);
+    QFont font = painter.font();
+    font.setPointSize(9);
+    painter.setFont(font);
+    QRect textRect = pixmap.rect().adjusted(30, 0, -8, 0);  // 图标右侧的文本区域
+    painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, message.address);
+
+    // 设置拖拽预览
+    drag->setPixmap(pixmap);
+    drag->setHotSpot(QPoint(pixmap.width()/2, pixmap.height()/2));  // 热点在中心
+
+    drag->exec(Qt::CopyAction);
 }
