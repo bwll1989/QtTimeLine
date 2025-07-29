@@ -17,7 +17,7 @@ inline QColor toolbarButtonPressedColor("#404040"); // 工具栏按钮按下颜�
 
 inline QColor toolbarButtonCheckedColor("#404040"); // 工具栏按钮选中颜色
 
-inline int toolbarButtonWidth = 30; // 工具栏按钮宽度
+inline int toolbarButtonWidth = 16; // 工具栏按钮宽度
 
 inline int toolbarHeight = 30; //工具栏高度
 
