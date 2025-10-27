@@ -425,6 +425,8 @@ protected:
     std::unordered_map<QString, QWidget*> _OscMapping;
     // 片段ID
     ClipId m_id;
+    //
+    QString m_modelAlias="default";
     // 拖拽起始位置
     QPoint dragStartPosition;
     // 是否正在拖拽
@@ -458,7 +460,7 @@ protected:
         if (oscAddress.isEmpty()) return;
     
         OSCMessage message;
-        message.address = "/timeline/" + QString::number(m_id) + oscAddress;
+        message.address = "/timeline/" + m_modelAlias+"/"+QString::number(m_id) + oscAddress;
         message.host = "127.0.0.1";
         message.port = 8991;
 
