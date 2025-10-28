@@ -21,6 +21,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QApplication>
+#include <QClipboard>
 #include <QPainter>
 #include <QRect>
 #include <QColor>
@@ -463,7 +464,8 @@ protected:
         message.address = "/timeline/" + m_modelAlias+"/"+QString::number(m_id) + oscAddress;
         message.host = "127.0.0.1";
         message.port = 8991;
-
+        QClipboard* clipboard = QApplication::clipboard();
+        clipboard->setText(message.address);
         // 获取控件的值
         if (auto* button = qobject_cast<QAbstractButton*>(widget)) {
             message.value = button->isChecked();

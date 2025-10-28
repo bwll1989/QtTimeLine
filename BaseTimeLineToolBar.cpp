@@ -2,6 +2,7 @@
 #include "TimeLineStyle.h"
 #include <QStyle>
 #include <QApplication>
+#include <QClipboard>
 
 BaseTimelineToolbar::BaseTimelineToolbar(QWidget* parent)
     : QToolBar(parent),
@@ -237,10 +238,11 @@ void BaseTimelineToolbar::startDrag(QAction* widget)
     if (oscAddress.isEmpty()) return;
 
     OSCMessage message;
-    message.address = "/timeline/toolbar" + oscAddress;
+    message.address = "/timeline/default/toolbar" + oscAddress;
     message.host = "127.0.0.1";
     message.port = 8991;
-
+    QClipboard* clipboard = QApplication::clipboard();
+    clipboard->setText(message.address);
     // 获取控件的值
 
     message.value = widget->isChecked();
