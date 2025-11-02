@@ -27,6 +27,7 @@ private:
     Ui::MainWindow *ui;
     BaseTimeLineModel* model;
     BaseTimelineWidget *timeline;
+    BaseTimelineToolbar *toolbar;
 };
 
 #endif // MAINWINDOW_H

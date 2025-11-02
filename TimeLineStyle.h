@@ -76,10 +76,26 @@ inline int baseTimeScale = 10; //基础时间刻度，用于计算缩放
 inline int fontSize = 25; //显示时间字体大小
 
 inline QColor fontColor = QColor(206, 91, 87); //字体颜色
+/**
+ * 参数说明：timescale初始值（像素/帧）
+ * - 语义：当前时间轴上“每帧占据的像素宽度”，单位 px/frame。
+ * - 作用：被用于 frameToPoint/pointToFrame、刻度绘制、剪辑位置与宽度计算等所有横向度量相关的逻辑。
+ * - 缩放行为：timescale 越大，时间轴越“放大”（每帧更宽）；timescale 越小，时间轴越“缩小”（每帧更窄）。
+ * - 取值范围：通常应在 [minTimescale, baseTimeScale] 之间；UI 层通过 currentScale（0~1）线性映射到此范围。
+ *   映射示例：timescale = minTimescale + currentScale * (baseTimeScale - minTimescale)
+ * - 初始化建议：若修改 timescale 的默认值，建议同步更新 BaseTimeLineView.h 中 currentScale 的初始值为
+ *   (timescale - minTimescale) / (baseTimeScale - minTimescale)，避免程序第一次滚轮缩放出现“跳变”。
+ */
+inline double timescale = 0.5; // 时间刻度(像素/帧)
 
-inline double m_scale = 0.1; //缩放
-
-inline int timescale = 1; //时间刻度,用于计算缩放
+/**
+ * 参数说明：minTimescale初始值（最小像素/帧）
+ * - 语义：允许的最小缩放下限，即每帧占用的最小像素宽度，限制过度缩小导致文本/控件不可见或精度问题。
+ * - 调参建议：根据帧率与字体大小设定。一般在 25fps 与默认字体下，可取 0.02~0.10；
+ *   若出现刻度文本过密、重叠，可适当增大 minTimescale 或配合刻度步长自适应策略。
+ * - 与 currentScale 的关系：当 currentScale=0 时应映射到 minTimescale，以保证最小缩放可达。
+ */
+inline double minTimescale = 0.05; // 最小缩放(像素/帧)，可按需调小，如 0.02
 
 inline int playheadwidth = 5; //播放头宽度
 

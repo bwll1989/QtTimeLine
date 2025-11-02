@@ -1,5 +1,4 @@
-#ifndef BASETRACKDELEGATE_H
-#define BASETRACKDELEGATE_H
+#pragma once
 
 #include <QAbstractItemDelegate>
 #include <QObject>
@@ -63,4 +62,4 @@ public:
 
 };
 
-#endif // TRACKDELEGATE_H
+

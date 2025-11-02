@@ -56,6 +56,8 @@ set(INCLUDES
         OperatingSystem.hpp
         TimeCodeDefines.h
         OSCMessage.h
+        DefaultTimeLineToolBar.h
+
 )
 # 源文件列表
 set(SOURCES
@@ -66,6 +68,7 @@ set(SOURCES
         BaseTimeLineWidget.cpp
         BaseTrackDelegate.cpp
         BaseTrackListView.cpp
+        DefaultTimeLineToolBar.cpp
         resources.qrc
 )
 set(QRC_FILES

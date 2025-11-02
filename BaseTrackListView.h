@@ -1,5 +1,4 @@
-#ifndef BASETRACKLISTVIEW_H
-#define BASETRACKLISTVIEW_H
+#pragma once
 
 #include <QAbstractItemView>
 #include <QMenu>
@@ -212,4 +211,3 @@ protected:
     BaseTimeLineModel *Model;
 };
 
-#endif // TRACKLISTVIEW_HPP

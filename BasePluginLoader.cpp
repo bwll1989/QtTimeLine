@@ -26,12 +26,12 @@
                     QString type = clipPlugin->clipType();
                     m_pluginsByType[type] = clipPlugin;
                     m_loadedPlugins.append(plugin);
-                    qDebug() << "Successfully loaded plugin:" << fileName << "Type:" << type;
+
                     emit pluginLoaded(plugin);
                 }
             }
         }
-        qDebug() << "Plugins loaded";
+
         emit pluginsLoaded();
     }
 

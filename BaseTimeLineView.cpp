@@ -2,6 +2,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QtMath>
+#include "DefaultTimeLineToolBar.h"
 BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent)
         : Model(viewModel), QAbstractItemView{parent}
     {
@@ -37,7 +38,7 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         connect(Model, &BaseTimeLineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
 
         installEventFilter(this);
-        setToolbar(new BaseTimelineToolbar(this));
+
 
     }
 
@@ -48,59 +49,13 @@ BaseTimelineView::~BaseTimelineView()
 
 }
 
-void BaseTimelineView::setToolbar(BaseTimelineToolbar* new_toolbar)
+void BaseTimelineView::initToolBar(BaseTimelineToolbar* new_toolbar)
 {
     m_toolbar=new_toolbar;
     m_toolbar->setFixedHeight(toolbarHeight-4);
     // 设置工具栏位置
     m_toolbar->move(0, 2);
 
-    // 连接工具栏播放按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::playClicked, [this]() {
-        getModel()->onStartPlay();
-    });
-    // 连接工具栏停止按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::stopClicked, [this]() {
-        getModel()->onStopPlay();
-    });
-    // 连接工具栏暂停按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::pauseClicked, [this]() {
-        getModel()->onPausePlay();
-    });
-    connect(m_toolbar,&BaseTimelineToolbar::prevFrameClicked,[this](){
-       getModel()->onSetPlayheadPos(qMax(0,getModel()->getPlayheadPos()-1));
-    });
-    connect(m_toolbar,&BaseTimelineToolbar::nextFrameClicked,[this](){
-        getModel()->onSetPlayheadPos(getModel()->getPlayheadPos()+1);
-    });
-    // 连接移动剪辑按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::moveClipClicked, [this](int dx) {
-        moveSelectedClip(dx,0,false);
-    });
-    // 连接删除剪辑按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::deleteClipClicked, [this]() {
-        if(selectionModel()->selectedIndexes().isEmpty())
-            return;
-
-        QModelIndex currentIndex = selectionModel()->currentIndex();
-        getModel()->onDeleteClip(currentIndex);
-
-        // 清除选择并发送 nullptr
-        selectionModel()->clearSelection();
-        emit currentClipChanged(nullptr);
-
-        viewport()->update();
-    });
-
-    // 连接放大按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::zoomInClicked, [this]() {
-
-       setScale(1.1);
-    });
-    // 连接缩小按钮信号
-    connect(m_toolbar, &BaseTimelineToolbar::zoomOutClicked, [this]() {
-        setScale(0.9);
-    });
 }
 
 QRect BaseTimelineView::visualRect(const QModelIndex &index) const
@@ -273,12 +228,20 @@ void BaseTimelineView::scrollContentsBy(int dx, int dy)
 
 int BaseTimelineView::pointToFrame(int point) const
 {
-    return point/timescale ;
+    /**
+     * 将像素位置转换为帧数（使用实例级 m_timescale，避免跨窗口干扰）
+     * - 当 m_timescale 越小，表示更"缩小"，则每个像素代表更多帧
+     */
+    return qRound(static_cast<double>(point) / m_timescale);
 }
 
 int BaseTimelineView::frameToPoint(int frame) const
 {
-    return frame*timescale;
+    /**
+     * 将帧数转换为像素坐标（使用实例级 m_timescale，避免跨窗口干扰）
+     * - 当 m_timescale 越小，表示更"缩小"，则每帧占据更少的像素
+     */
+    return qRound(static_cast<double>(frame) * m_timescale);
 }
 
 void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
@@ -384,30 +347,36 @@ void BaseTimelineView::leaveEvent(QEvent *event)
 // 设置缩放比例
 void BaseTimelineView::setScale(double value)
 {
+    /**
+     * 根据归一化比例更新本视图实例的时间刻度（像素/帧）
+     * - 不再修改全局 timescale，避免不同窗口互相影响
+     * - 保持播放头焦点在缩放后视觉位置不变
+     */
+    // 1. 先保存旧的 timescale 用于计算旧焦点像素位置
+    double oldTimescale = m_timescale;
 
-    // 保存当前焦点帧位置
+    // 2. 将输入值钳制到 [0.0, 1.0]
+    double ratio = qBound(0.0, value, 1.0);
+
+    // 3. 将 ratio 线性映射到 [m_minTimescale, m_baseTimeScale]
+    //    ratio=0 -> m_timescale=m_minTimescale；ratio=1 -> m_timescale=m_baseTimeScale
+    m_timescale = m_minTimescale + ratio * (static_cast<double>(m_baseTimeScale) - m_minTimescale);
+
+    // 4. 保持播放头焦点位置不变
     int focusFrame = getModel()->getPlayheadPos();
-
-    // 计算旧焦点在点坐标系中的位置
-    int oldPointFocus = frameToPoint(focusFrame);
-    // 设置新的缩放比例 (value 范围是 0-1)
-    timescale = (value * 99 + 1) * baseTimeScale / 100;  // 将 0-1 映射到 5%-100% 的缩放范围
-//     timescale = value * baseTimeScale;
-    timescale=qMax(1,timescale);
-
-    int newPointFocus = frameToPoint(focusFrame);
-
-    // 计算位移差异以保持焦点位置不变
+    int oldPointFocus = qRound(static_cast<double>(focusFrame) * oldTimescale);
+    int newPointFocus = qRound(static_cast<double>(focusFrame) * m_timescale);
     int diff = newPointFocus - oldPointFocus;
 
-    // 调整滚动偏移以保持焦点位置
+    // 5. 调整滚动偏移以保持焦点位置
     if (m_scrollOffset.x() + diff >= 0) {
         scrollContentsBy(-diff, 0);
     } else {
         m_scrollOffset.setX(0);
     }
 
-    // 更新界面
+    // 6. 更新界面
+    currentScale = ratio;
     updateEditorGeometries();
     updateScrollBars();
     viewport()->update();
@@ -795,14 +764,14 @@ void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rec
     int frameStep = calculateFrameStep(frameRate);
 
     // 计算起始和结束位置
-    int startMarker = static_cast<int>(pointToFrame(m_scrollOffset.x())) * timescale + 1;
+    int startMarker = static_cast<int>(pointToFrame(m_scrollOffset.x())) * m_timescale + 1;
     int endMarker = rect.width() + m_scrollOffset.x();
     startMarker = pointToFrame(startMarker);
     startMarker -= (startMarker % frameStep);
     startMarker = frameToPoint(startMarker);
 
     // 绘制垂直时间线
-    for (int i = startMarker; i < endMarker; i += timescale * frameStep) {
+    for (int i = startMarker; i < endMarker; i += m_timescale * frameStep) {
         painter->drawLine(i - m_scrollOffset.x(),
                          std::max(rulerHeight, rect.top()),
                          i - m_scrollOffset.x(),
@@ -812,23 +781,42 @@ void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rec
 
 int BaseTimelineView::calculateFrameStep(double frameRate) const
 {
-    if (timescale >= frameRate) {
-        return 10;  // 每帧都显示时间码
-    } else if (timescale >= frameRate / 2) {
-        return 20;  // 每2帧显示一次
-    } else if (timescale >= frameRate / 5) {
-        return 50;  // 每5帧显示一次
-    } else if (timescale >= frameRate / 10) {
-        return 100; // 每10帧显示一次
-    } else if (timescale >= frameRate / 25) {
-        return 25; // 每25帧显示一次
-    } else {
-        return qRound(frameRate); // 每秒显示一次
+    /**
+     * 函数说明：
+     * - 根据当前 m_timescale（像素/帧）和字体大小，计算一个不会导致标签重叠的帧步长。
+     * - 再从一组"漂亮步长"（1、2、5、10、25、50、100、帧率）中选取第一个不小于该步长的值。
+     */
+
+    /**
+     * 按当前实例的 m_timescale 计算合适的刻度步长，避免跨窗口共享状态
+     */
+    // 估算标签的最小像素间距：与字体大小相关（也可改为用 QFontMetrics 的度量）
+    const int minPixelSpacing = qMax(30, static_cast<int>(fontSize * 1.8));
+
+    // 像素间距 => 帧间距（ceil 保证足够间距）
+    int framesByPixels = qMax(1, static_cast<int>(std::ceil(static_cast<double>(minPixelSpacing) / m_timescale)));
+
+    // "漂亮"的步长集合（可按需扩展）
+    const int fpsRounded = static_cast<int>(std::round(frameRate));
+    const QVector<int> niceSteps = {1, 2, 5, 10, 25, 50, 100, fpsRounded, fpsRounded * 2, fpsRounded * 5};
+
+    // 选择第一个 >= framesByPixels 的漂亮步长；若都小于，则用最后一个
+    int step = niceSteps.last();
+    for (int s : niceSteps) {
+        if (s >= framesByPixels) { step = s; break; }
     }
+
+    return step;
 }
 
 void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
 {
+    /**
+     * 函数说明：
+     * - 绘制标尺背景，计算起止范围与帧步长。
+     * - 使用当前 timescale 与帧步长确定像素间距，避免文本重叠。
+     */
+
     // 绘制标尺背景
     painter->setPen(rulerColour);
     painter->setBrush(QBrush(bgColour));
@@ -836,35 +824,59 @@ void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
                      rect.width() + m_scrollOffset.x(),
                      rulerHeight + toolbarHeight);
 
-    // 计算时间线间隔
-    double frameRate = 25.0;
-    int frameStep = calculateFrameStep(frameRate);
+    // 计算时间线间隔（帧步长）
+    const double frameRate = 200.0;
+    const int frameStep = calculateFrameStep(frameRate);
 
-    // 计算起始和结束位置
-    int startMarker = static_cast<int>(pointToFrame(m_scrollOffset.x())) * timescale + 1;
-    int endMarker = rect.width() + m_scrollOffset.x();
-    startMarker = pointToFrame(startMarker);
-    startMarker -= (startMarker % frameStep);
-    startMarker = frameToPoint(startMarker);
+    // 计算起始/结束位置（以帧为单位，规整到步长边界）
+    int startFrame = pointToFrame(m_scrollOffset.x());
+    startFrame -= (startFrame % frameStep);
 
-    // 绘制时间标记和文本
-    drawTimeMarkers(painter, startMarker, endMarker, frameStep);
+    const int startX = frameToPoint(startFrame);
+    const int endX   = rect.width() + m_scrollOffset.x();
+
+    // 绘制时间标记和文本（根据像素间距决定是否绘制文本）
+    drawTimeMarkers(painter, startX, endX, frameStep);
 }
 
 void BaseTimelineView::drawTimeMarkers(QPainter* painter, int startMarker, int endMarker, int frameStep)
 {
-    for (int i = startMarker; i < endMarker; i += timescale * frameStep) {
-        int number = pointToFrame(i);
-        QString text = tr("%1").arg(number);
-        QRect textRect = painter->fontMetrics().boundingRect(text);
+    /**
+     * 函数说明：
+     * - 按帧步长绘制刻度线。
+     * - 当像素间距不足最小间距时，仅绘制刻度线不绘制文本，避免重叠。
+     */
 
-        textRect.translate(-m_scrollOffset.x(), 0);
-        textRect.translate(i - textRect.width() / 2, rulerHeight + toolbarHeight - textoffset);
+    // 计算每个刻度的像素间距
+    /**
+     * 使用实例级 m_timescale 计算刻度像素间距，避免跨窗口共享状态导致的干扰
+     */
+    const int tickPixelStep = static_cast<int>(std::round(m_timescale * frameStep));
 
-        painter->drawLine(i - m_scrollOffset.x(), textRect.bottom(),
-                         i - m_scrollOffset.x(), rulerHeight + toolbarHeight);
+    // 依据字体大小设定最小文本间距
+    const int minLabelPixelSpacing = qMax(30, static_cast<int>(fontSize * 1.8));
+    const bool canDrawText = tickPixelStep >= minLabelPixelSpacing;
 
-        painter->drawText(textRect, text);
+    for (int x = startMarker; x < endMarker; x += tickPixelStep) {
+        const int frameNumber = pointToFrame(x);
+
+        // 画刻度线
+        painter->drawLine(x - m_scrollOffset.x(),
+                          rulerHeight + toolbarHeight - textoffset,
+                          x - m_scrollOffset.x(),
+                          rulerHeight + toolbarHeight);
+
+        if (canDrawText) {
+            // 准备文本
+            const QString text = tr("%1").arg(frameNumber);
+            QRect textRect = painter->fontMetrics().boundingRect(text);
+
+            // 将文本居中到刻度线
+            textRect.translate(-m_scrollOffset.x(), 0);
+            textRect.translate(x - textRect.width() / 2, rulerHeight + toolbarHeight - textoffset);
+
+            painter->drawText(textRect, text);
+        }
     }
 }
 
@@ -951,36 +963,41 @@ void BaseTimelineView::selectionChanged(const QItemSelection &selected, const QI
 }
 
 void BaseTimelineView::wheelEvent(QWheelEvent *event){
-        if (event->modifiers() & Qt::ControlModifier) {
-            // 缩放操作，以鼠标位置为中心
-            QPoint pos = event->position().toPoint();
-            double delta = event->angleDelta().y() / 120.0; // 标准滚轮步长
-            double scaleChange = (delta > 0 ? 1.1 : 0.9);
-            currentScale = currentScale*scaleChange;
-            currentScale=qBound(0.1,currentScale,1.0);
-            setScale(currentScale);
-        } else {
-            // 水平滚动
-            QPoint numPixels = event->angleDelta();
-            int dx = -numPixels.y() / 2; // 减小滚动速度
-            
-            // 计算新的滚动位置
-            int newX = m_scrollOffset.x() + dx;
-            
-            // 限制滚动范围
-            int maxScroll = qMax(0, getTrackWdith() - viewport()->width());
-            newX = qBound(0, newX, maxScroll);
-            
-            // 应用新的滚动位置
-            if (newX != m_scrollOffset.x()) {
-                m_scrollOffset.setX(newX);
-                updateEditorGeometries();
-                viewport()->update();
-                emit scrolled(dx, 0);
-            }
+    // 函数说明：支持 Ctrl+滚轮进行缩放；否则进行水平滚动
+    if (event->modifiers() & Qt::ControlModifier) {
+        // 缩放操作，以鼠标位置为中心（可按需使用 pos）
+        QPoint pos = event->position().toPoint();
+        double delta = event->angleDelta().y() / 120.0; // 标准滚轮步长
+        double scaleChange = (delta > 0 ? 1.1 : 0.9);    // 每次滚动的缩放倍率
+
+        currentScale = currentScale * scaleChange;
+        
+        // 允许达到 0.0，从而触达 setScale 的 m_minTimescale
+        currentScale = qBound(0.0, currentScale, 1.0);
+
+        setScale(currentScale);
+    } else {
+        // 水平滚动
+        QPoint numPixels = event->angleDelta();
+        int dx = -numPixels.y() / 2; // 减小滚动速度
+        
+        // 计算新的滚动位置
+        int newX = m_scrollOffset.x() + dx;
+        
+        // 限制滚动范围
+        int maxScroll = qMax(0, getTrackWdith() - viewport()->width());
+        newX = qBound(0, newX, maxScroll);
+        
+        // 应用新的滚动位置
+        if (newX != m_scrollOffset.x()) {
+            m_scrollOffset.setX(newX);
+            updateEditorGeometries();
+            viewport()->update();
+            emit scrolled(dx, 0);
         }
-        event->accept();
     }
+    event->accept();
+}
 
 void BaseTimelineView::onFrameChanged(qint64 frame)
 {
@@ -991,7 +1008,7 @@ void BaseTimelineView::onFrameChanged(qint64 frame)
 
 void BaseTimelineView::onPlaybackStateChanged(bool isPlaying)
 {
-    m_toolbar->setPlaybackState(isPlaying);
+    dynamic_cast<DefaultTimeLineToolBar*>(m_toolbar)->setPlaybackState(isPlaying);
     
 }
 

@@ -2,23 +2,7 @@
 // Created by bwll1 on 2024/5/27.
 //
 
-#ifndef BASETIMELINEWIDGET_H
-#define BASETIMELINEWIDGET_H
-//#if defined(_MSC_VER) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-//#  define Q_DECL_EXPORT __declspec(dllexport)
-//#  define Q_DECL_IMPORT __declspec(dllimport)
-//#else
-//#  define Q_DECL_EXPORT     __attribute__((visibility("default")))
-//#  define Q_DECL_IMPORT     __attribute__((visibility("default")))
-//#endif
-//
-//#if defined(TIMELINEWIDGET_LIBRARY)
-//#  define TIMELINEWIDGET_EXPORT Q_DECL_EXPORT
-//#else
-//#  define TIMELINEWIDGET_EXPORT Q_DECL_IMPORT
-//#endif
-
-
+#pragma once
 #include <QToolBar>
 #include<QStyleFactory>
 #include <QSplitter>
@@ -34,6 +18,8 @@
 #include <QFileDialog>
 #include <QJsonDocument>
 #include <QGuiApplication>
+#include "DefaultTimeLineToolBar.h"
+
 
 
 class NODE_TIMELINE_PUBLIC BaseTimelineWidget : public QWidget {
@@ -54,8 +40,8 @@ public:
     BaseTimelineView* view;
     //轨道列表
     BaseTracklistView* tracklist;
-   
-
+    //工具栏
+    DefaultTimeLineToolBar* toolbar;
 Q_SIGNALS:
     //初始化信号
     void initialized();
@@ -85,5 +71,3 @@ private:
 
 };
 
-
-#endif //TIMELINE_TIMEWIDGET_H

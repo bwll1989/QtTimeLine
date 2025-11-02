@@ -1,5 +1,4 @@
-﻿#ifndef BASETIMELINEVIEW_H
-#define BASETIMELINEVIEW_H
+﻿#pragma once
 
 #include <QAbstractItemView>
 #include <unordered_map>
@@ -48,6 +47,8 @@ public:
      * @param QModelIndex index 片段索引
      */
     virtual void showClipProperty(const QModelIndex& index);
+
+    virtual void initToolBar(BaseTimelineToolbar* toolbar);
     // 时间线工具栏
     BaseTimelineToolbar* m_toolbar;
     // 时间线定时器
@@ -101,6 +102,7 @@ public slots:
      * @param QPoint pos 位置
      */
     virtual void addClipAtPosition(const QModelIndex& index, const QPoint& pos);
+
 
 protected:
     /**
@@ -291,26 +293,27 @@ protected:
     // 判断文件对应的track类型
 
     virtual QString isMimeAcceptable(const QMimeData *Mime) const;
-    // 在 protected 部分添加以下函数声明
 
-/**
- * 处理鼠标拖动操作
- * @param event 鼠标事件对象
- */
-virtual void handleMouseDrag(QMouseEvent *event);
 
-/**
- * 更新鼠标悬停状态
- * @param event 鼠标事件对象
- */
-virtual void updateMouseHoverState(QMouseEvent *event);
 
-/**
- * 根据鼠标悬停状态更新鼠标指针形状
- */
-virtual void updateCursorShape();
+    /**
+     * 处理鼠标拖动操作
+     * @param event 鼠标事件对象
+     */
+    virtual void handleMouseDrag(QMouseEvent *event);
 
-void setToolbar(BaseTimelineToolbar* toolbar);
+    /**
+     * 更新鼠标悬停状态
+     * @param event 鼠标事件对象
+     */
+    virtual void updateMouseHoverState(QMouseEvent *event);
+
+    /**
+     * 根据鼠标悬停状态更新鼠标指针形状
+     */
+    virtual void updateCursorShape();
+
+
 
 protected slots:
     /**
@@ -329,7 +332,23 @@ protected slots:
 
 protected:
     // 当前缩放
-    double currentScale = 1.0;
+    /**
+     * 每个视图实例自己的时间刻度参数（避免跨窗口相互影响）
+     * - m_timescale：当前像素/帧，仅用于本视图实例
+     * - m_minTimescale：本视图允许的最小像素/帧，用于缩放下限
+     * - m_baseTimeScale：本视图允许的最大像素/帧，用于缩放上限
+     * 说明：这些成员在构造时从 TimeLineStyle.h 的默认值初始化，但后续不再写回全局变量
+     */
+    double m_timescale     = timescale;
+    double m_minTimescale  = minTimescale;
+    int    m_baseTimeScale = baseTimeScale;
+
+    /**
+     * 当前缩放归一化比例（0~1）：与本实例的 m_timescale 保持一致
+     * 公式：ratio = (m_timescale - m_minTimescale) / (m_baseTimeScale - m_minTimescale)
+     * 这样首次滚轮缩放不会跳变
+     */
+    double currentScale = (m_timescale - m_minTimescale) / (static_cast<double>(m_baseTimeScale) - m_minTimescale);
     // 时间线模型
     BaseTimeLineModel *Model;
     /**
@@ -373,7 +392,6 @@ protected:
 
 };
 
-#endif // TIMELINEVIEW_HPP
 
 
 

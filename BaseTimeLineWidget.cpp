@@ -31,7 +31,9 @@ void BaseTimelineWidget::createComponents() {
     // 创建视图组件
     view = new BaseTimelineView(model, this);
     tracklist = new BaseTracklistView(model, this);
-    
+    // 工具栏
+    toolbar = new DefaultTimeLineToolBar(view);
+    view->initToolBar(toolbar);
     // 创建水平分割器
     splitter = new QSplitter(Qt::Horizontal, this);
     splitter->addWidget(tracklist);
@@ -63,7 +65,7 @@ void BaseTimelineWidget::createComponents() {
     connect(tracklist, &BaseTracklistView::viewUpdate, view, &BaseTimelineView::onUpdateViewport);
     // 连接工具栏设置按钮到显示设置对话框
 
-    connect(view->m_toolbar, &BaseTimelineToolbar::settingsClicked, this, &BaseTimelineWidget::showSettingsDialog);
+
 
     // 连接模型的帧图像更新信号到舞台
 //    connect(model, &BaseTimelineModel::S_frameImageUpdated,

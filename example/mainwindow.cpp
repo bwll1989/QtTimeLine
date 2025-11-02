@@ -4,6 +4,7 @@
 #include "BaseTimeLineWidget.h"
 #include "BaseTimeLineModel.h"
 #include "BasePluginLoader.h"
+#include "BaseTimeLineToolBar.h"
 #include <QFileDialog>
 #include <QJsonDocument>
 #include <QMessageBox>
@@ -15,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     model = new BaseTimeLineModel();
     //给模型初始化插件加载器
     /*model->setPluginLoader(new BasePluginLoader());*/
-
+    // toolbar = new DefaultTimeLineToolBar();
     timeline = new BaseTimelineWidget(model);
     ui->verticalLayout->addWidget(timeline);
     connect(ui->actionsave_2, &QAction::triggered, this, &MainWindow::onSaveScene);
