@@ -1,5 +1,4 @@
-#ifndef ABSTRACTCLIPMODEL_H
-#define ABSTRACTCLIPMODEL_H
+#pragma once
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
@@ -18,7 +17,6 @@
 #include <QLineEdit>
 #include <QMimeData>
 #include <QGroupBox>
-#include <QDialogButtonBox>
 #include <QLabel>
 #include <QApplication>
 #include <QClipboard>
@@ -29,7 +27,9 @@
 #include <TimeCodeDefines.h>
 #include "TimelineExports.hpp"
 #include <qDrag>
+#include <QCheckBox>
 #include "OSCMessage.h"
+#include "ClipTimePanel.hpp"
 using namespace QtTimeline;
 class NODE_TIMELINE_PUBLIC AbstractClipModel : public QObject {
     Q_OBJECT
@@ -241,6 +241,8 @@ void showPropertyWidget(){
      * @param const QRect& rect 绘制区域
      * @param bool selected 是否被选中
      */
+// AbstractClipModel::initPropertyWidget
+// 函数说明：初始化属性面板，此处将“时间属性”界面独立为 ClipTimePanel，并保持原有功能与信号连接。
 virtual void initPropertyWidget(){
    
     m_standardPropertyWidget = new QWidget();
@@ -254,72 +256,10 @@ virtual void initPropertyWidget(){
     contentLayout->setContentsMargins(0, 0, 0, 0);
     contentLayout->setSpacing(4);
 
-    // 1. 时间属性组
-    QGroupBox *timeGroupBox = new QGroupBox(tr("时间属性"), m_standardPropertyWidget);
-    QGridLayout *timeLayout = new QGridLayout(timeGroupBox);
-    
-    // 开始帧显示
-    auto startLabel = new QLabel(tr("开始帧:"), m_standardPropertyWidget);
-
-    timeLayout->addWidget(startLabel, 0, 0);
-    m_startFrameSpinBox=new QSpinBox(m_standardPropertyWidget);
-    m_startFrameSpinBox->setRange(0, 9999999);
-    m_startFrameSpinBox->setValue(start());
-    registerOSCControl("/start",m_startFrameSpinBox);
-    connect(m_startFrameSpinBox, &QSpinBox::valueChanged, this, &AbstractClipModel::setStart);
-    connect(this, &AbstractClipModel::timelinePositionChanged, this, [this](){
-        m_startFrameSpinBox->blockSignals(true);
-        m_startFrameSpinBox->setValue(start());
-        auto startTimeCode=frames_to_timecode_frame(start(),getTimeCodeType());
-        m_startTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(startTimeCode.hours)
-                                                                   .arg(startTimeCode.minutes)
-                                                                   .arg(startTimeCode.seconds)
-                                                                   .arg(startTimeCode.frames));
-        m_startFrameSpinBox->blockSignals(false);
-    });
-    timeLayout->addWidget(m_startFrameSpinBox, 0, 1);
-    m_startTimeCodeLineEdit=new QLineEdit(m_standardPropertyWidget);
-    m_startTimeCodeLineEdit->setReadOnly(true);  // 设置为只读
-    auto startTimeCode=frames_to_timecode_frame(start(),getTimeCodeType());
-    m_startTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(startTimeCode.hours)
-                                                               .arg(startTimeCode.minutes)
-                                                               .arg(startTimeCode.seconds)
-                                                               .arg(startTimeCode.frames));
-    timeLayout->addWidget(m_startTimeCodeLineEdit, 0, 2);
-    
-    // 结束帧显示
-    auto endLabel = new QLabel(tr("结束帧:"), m_standardPropertyWidget);
-    timeLayout->addWidget(endLabel, 1, 0);
-    m_endFrameSpinBox=new QSpinBox(m_standardPropertyWidget);
-    m_endFrameSpinBox->setRange(0, 9999999);
-    m_endFrameSpinBox->setValue(end());
-    registerOSCControl("/end",m_endFrameSpinBox);
-    connect(m_endFrameSpinBox, &QSpinBox::valueChanged, this, &AbstractClipModel::setEnd);
-    connect(this, &AbstractClipModel::lengthChanged, this, [this](){
-        m_endFrameSpinBox->blockSignals(true);
-        m_endFrameSpinBox->setValue(end());
-        auto endTimeCode=frames_to_timecode_frame(end(),getTimeCodeType());
-        m_endTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(endTimeCode.hours)
-                                                                .arg(endTimeCode.minutes)
-                                                                .arg(endTimeCode.seconds)
-                                                                .arg(endTimeCode.frames));
-        m_endFrameSpinBox->blockSignals(false);
-    });
-    timeLayout->addWidget(m_endFrameSpinBox, 1, 1);
-    
-    // 结束时间码显示
-
-    m_endTimeCodeLineEdit=new QLineEdit(m_standardPropertyWidget);
-    m_endTimeCodeLineEdit->setReadOnly(true);  // 设置为只读
-    auto endtimecode=frames_to_timecode_frame(end(),getTimeCodeType());
-    m_endTimeCodeLineEdit->setText(QString("%1:%2:%3.%4").arg(endtimecode.hours).
-                                                            arg(endtimecode.minutes).
-                                                            arg(endtimecode.seconds).
-                                                            arg(endtimecode.frames));
-    timeLayout->addWidget(m_endTimeCodeLineEdit, 1, 2);
-
+    // 1. 时间属性组（重构后：由 ClipTimePanel 管理）
+    timeGroupBox = new ClipTimePanel(this,m_standardPropertyWidget);
     m_layout->addWidget(timeGroupBox);
-    
+
     // 添加代理编辑器的占位符
     if (!m_clipPropertyWidget) {
         m_clipPropertyWidget = clipPropertyWidget();
@@ -434,19 +374,13 @@ protected:
     bool isDragging = false;
     // 布局
     QVBoxLayout* m_layout;
-    //开始帧
-    QSpinBox* m_startFrameSpinBox;
-    //结束帧
-    QSpinBox* m_endFrameSpinBox;
-    //开始时间码
-    QLineEdit* m_startTimeCodeLineEdit;
-    //结束时间码
-    QLineEdit* m_endTimeCodeLineEdit;
+    // //开始帧
+
     // 代理窗口
     QWidget* m_clipPropertyWidget;
     //时间码类型
     TimeCodeType m_timeCodeType;
-
+    ClipTimePanel *timeGroupBox;
     void startDrag(QWidget* widget) 
     {
         // 找到对应的OSC地址
@@ -617,5 +551,3 @@ virtual void drawTitle(QPainter* painter, const QRect& rect) const {
 };
 
 Q_DECLARE_METATYPE(AbstractClipModel*)
-
-#endif // ABSTRACTCLIPMODEL_HPP 

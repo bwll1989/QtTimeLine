@@ -66,6 +66,14 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
 
  QModelIndex BaseTimelineView::indexAt(const QPoint &point) const
     {
+        /**
+         * 函数说明：根据鼠标点返回对应的模型索引
+         * - 原逻辑：优先命中轨道，再命中该轨道下的剪辑矩形（visualRect）
+         * - 修改点：为避免在极小缩放下片段过窄导致无法选中，
+         *   在剪辑的命中测试时应用“最小命中宽度”保护：
+         *   如果 clipRect.width() < minHitWidth，则围绕其中心点临时扩展命中矩形到 minHitWidth，
+         *   仅用于contains判断，不影响绘制或布局的真实宽度。
+         */
         //检查位置是否在工具栏区域
         if (point.y() < rulerHeight+toolbarHeight) {
             return QModelIndex(); // Return an invalid index if the point is in the ruler area
@@ -82,6 +90,15 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
                 for (int j = 0; j < model()->rowCount(trackIndex); ++j) {
                     QModelIndex clipIndex = model()->index(j, 0, trackIndex);
                     QRect clipRect = visualRect(clipIndex);
+
+                    // 最小命中宽度保护：当片段过窄时，临时扩大命中区域以保证可点击
+                    const int minHitWidth = 8;
+                    if (clipRect.width() < minHitWidth) {
+                        int pad = (minHitWidth - clipRect.width()) / 2;
+                        clipRect.adjust(-pad, 0, pad, 0);
+                        // 约束在轨道矩形范围内，避免越界
+                        clipRect = clipRect.intersected(trackRect);
+                    }
 
                     //检查位置是否在剪辑矩形内
                     if (clipRect.contains(point)) {
@@ -245,35 +262,51 @@ int BaseTimelineView::frameToPoint(int frame) const
 }
 
 void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
+    // 构建并弹出右键菜单（统一一个 QMenu 实例）
     QModelIndex index = indexAt(event->pos());
+    QMenu contextMenu(this);
 
-    // Check if the index is a track (i.e., it has no parent)
+    // Focus cursor：滚动视图到播放头位置（尽量居中）
+    QAction* focusCursorAction = new QAction("Focus cursor", this);
+    focusCursorAction->setIcon(QIcon(":/icons/icons/location.png"));
+    connect(focusCursorAction, &QAction::triggered, [this]() {
+        const int playheadX = frameToPoint(getModel()->getPlayheadPos());
+        const int viewWidth = viewport()->width();
+        const int maxScroll = horizontalScrollBar()->maximum();
+        int targetScroll = playheadX - viewWidth / 2;
+        targetScroll = qBound(0, targetScroll, maxScroll);
+        horizontalScrollBar()->setValue(targetScroll);
+        viewport()->update();
+    });
+    contextMenu.addAction(focusCursorAction);
+
+    // 如果点击在轨道（无父）上，添加“Add Item”
     if (index.isValid() && !index.parent().isValid()) {
-        QMenu contextMenu(this);
-
         QAction* addClipAction = new QAction("Add Item", this);
+        addClipAction->setIcon(QIcon(":/icons/icons/add.png"));
         connect(addClipAction, &QAction::triggered, [this, index, event]() {
             addClipAtPosition(index, event->pos());
         });
-
         contextMenu.addAction(addClipAction);
-        contextMenu.exec(event->globalPos());
     }
-    if(index.isValid()&&selectionModel()->isSelected(index)){
 
-        QMenu contextMenu(this);
-
+    // 如果点击在已选中的剪辑上，添加“Delete Clip”
+    if (index.isValid() && selectionModel()->isSelected(index)) {
         QAction* deleteClipAction = new QAction("Delete Clip", this);
+        deleteClipAction->setIcon(QIcon(":/icons/icons/trash.png"));
         connect(deleteClipAction, &QAction::triggered, [this, index]() {
             getModel()->onDeleteClip(index);
             selectionModel()->clearSelection();
             viewport()->update();
         });
-
         contextMenu.addAction(deleteClipAction);
-        contextMenu.exec(event->globalPos());
-        QAbstractItemView::contextMenuEvent(event);
     }
+
+    // 统一显示菜单
+    contextMenu.exec(event->globalPos());
+
+    // 调用基类处理（保持与原逻辑一致）
+    QAbstractItemView::contextMenuEvent(event);
 }
 //void BaseTimelineView::keyPressEvent(QKeyEvent *event)
 //{
@@ -377,6 +410,7 @@ void BaseTimelineView::setScale(double value)
 
     // 6. 更新界面
     currentScale = ratio;
+    qDebug()<<"currentScale:"<<currentScale;
     updateEditorGeometries();
     updateScrollBars();
     viewport()->update();
@@ -760,7 +794,7 @@ void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rec
     int lineheight = model()->rowCount() * trackHeight + rulerHeight + toolbarHeight;
 
     // 计算时间线间隔
-    double frameRate = 25.0;
+    double frameRate = timecode_frames_per_sec(Model->getTimeCodeType());
     int frameStep = calculateFrameStep(frameRate);
 
     // 计算起始和结束位置
@@ -798,7 +832,7 @@ int BaseTimelineView::calculateFrameStep(double frameRate) const
 
     // "漂亮"的步长集合（可按需扩展）
     const int fpsRounded = static_cast<int>(std::round(frameRate));
-    const QVector<int> niceSteps = {1, 2, 5, 10, 25, 50, 100, fpsRounded, fpsRounded * 2, fpsRounded * 5};
+    const QVector<int> niceSteps = { fpsRounded/2, fpsRounded, fpsRounded * 5,fpsRounded * 10,fpsRounded * 30, fpsRounded * 60};
 
     // 选择第一个 >= framesByPixels 的漂亮步长；若都小于，则用最后一个
     int step = niceSteps.last();
@@ -825,7 +859,7 @@ void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
                      rulerHeight + toolbarHeight);
 
     // 计算时间线间隔（帧步长）
-    const double frameRate = 200.0;
+    const double frameRate = timecode_frames_per_sec(Model->getTimeCodeType());
     const int frameStep = calculateFrameStep(frameRate);
 
     // 计算起始/结束位置（以帧为单位，规整到步长边界）
@@ -867,8 +901,20 @@ void BaseTimelineView::drawTimeMarkers(QPainter* painter, int startMarker, int e
                           rulerHeight + toolbarHeight);
 
         if (canDrawText) {
-            // 准备文本
-            const QString text = tr("%1").arg(frameNumber);
+           // 文本格式化为 mm:ss.ff（分钟:秒.帧）
+            const double frameRate = timecode_frames_per_sec(Model->getTimeCodeType());
+            const int fps = static_cast<int>(std::round(frameRate)); // 将非整数帧率四舍五入用于显示
+            const qint64 totalFrames  = static_cast<qint64>(frameNumber);
+            const qint64 totalSeconds = (fps > 0) ? (totalFrames / fps) : 0;
+            const int ff = (fps > 0) ? static_cast<int>(totalFrames % fps) : 0;
+            const int mm = static_cast<int>(totalSeconds / 60);
+            const int ss = static_cast<int>(totalSeconds % 60);
+
+            const QString text = QString("%1:%2.%3")
+                                    .arg(mm, 2, 10, QChar('0'))
+                                    .arg(ss, 2, 10, QChar('0'))
+                                    .arg(ff, 2, 10, QChar('0'));
+
             QRect textRect = painter->fontMetrics().boundingRect(text);
 
             // 将文本居中到刻度线
@@ -925,12 +971,7 @@ void BaseTimelineView::drawTracks(QPainter* painter)
             // 调用片段的绘制方法
             clip->paint(painter, clipRect, selected);
         }
-            // 使用圆角矩形绘制clip
-            // if(clipIndex.data(TimelineRoles::ClipShowBorderRole).toBool()){
-            //     painter->setPen(QPen(ClipBorderColour, ClipBorderWidth));
-            //     QRect clipRect = visualRect(clipIndex).adjusted(0, clipoffset, 0, -clipoffset);
-            //     painter->drawRoundedRect(clipRect, clipround, clipround);  // 设置水平和垂直圆角半径为5像素
-            // }
+
             // if (!indexWidget(clipIndex)&&clipIndex.data(TimelineRoles::ClipShowWidgetRole).toBool()) {
                 
             //     openPersistentEditor(clipIndex);
@@ -963,32 +1004,31 @@ void BaseTimelineView::selectionChanged(const QItemSelection &selected, const QI
 }
 
 void BaseTimelineView::wheelEvent(QWheelEvent *event){
-    // 函数说明：支持 Ctrl+滚轮进行缩放；否则进行水平滚动
+    /**
+     * 函数说明：支持 Ctrl+滚轮进行缩放；否则进行水平滚动
+     * - 缩放使用乘法步进，并钳制到 [minNormalized, 1.0]，避免无限缩小
+     * - 保持与 setScale 的最小阈值一致
+     */
     if (event->modifiers() & Qt::ControlModifier) {
-        // 缩放操作，以鼠标位置为中心（可按需使用 pos）
+        // 缩放操作
         QPoint pos = event->position().toPoint();
         double delta = event->angleDelta().y() / 120.0; // 标准滚轮步长
         double scaleChange = (delta > 0 ? 1.1 : 0.9);    // 每次滚动的缩放倍率
 
-        currentScale = currentScale * scaleChange;
-        
-        // 允许达到 0.0，从而触达 setScale 的 m_minTimescale
-        currentScale = qBound(0.0, currentScale, 1.0);
+        // 允许达到指定下限，从而触达 setScale 的最小可见缩放
+        const double minNormalized = minTimescale; // 与 setScale 保持一致
+        currentScale = qBound(minNormalized, currentScale * scaleChange, 1.0);
 
         setScale(currentScale);
     } else {
         // 水平滚动
         QPoint numPixels = event->angleDelta();
         int dx = -numPixels.y() / 2; // 减小滚动速度
-        
-        // 计算新的滚动位置
+
         int newX = m_scrollOffset.x() + dx;
-        
-        // 限制滚动范围
         int maxScroll = qMax(0, getTrackWdith() - viewport()->width());
         newX = qBound(0, newX, maxScroll);
-        
-        // 应用新的滚动位置
+
         if (newX != m_scrollOffset.x()) {
             m_scrollOffset.setX(newX);
             updateEditorGeometries();

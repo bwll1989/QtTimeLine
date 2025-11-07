@@ -21,6 +21,7 @@ BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *pare
     
     // Create delete track action
     m_deleteTrackAction = new QAction("Delete track", this);
+    m_deleteTrackAction->setIcon(QIcon(":/icons/icons/trash.png"));
     m_deleteTrackAction->setShortcut(QKeySequence(Qt::Key_Delete));
     QObject::connect(m_deleteTrackAction, &QAction::triggered, this, &BaseTracklistView::onDeleteTrack);
     //轨道变化后刷新显示
@@ -62,8 +63,8 @@ void BaseTracklistView::contextMenuEvent(QContextMenuEvent* event) {
         QMenu contextMenu(this);
         //qDebug()<<"contextMenuEvent";
         // Add track creation submenu
-        QMenu* addTrackMenu = contextMenu.addMenu("Add Track      ");
-        
+        QMenu* addTrackMenu = contextMenu.addMenu("Add Track ");
+        addTrackMenu->setIcon(QIcon(":/icons/icons/add.png"));
         // Get available track types from BasePluginLoader
         QStringList availableTypes = Model->getPluginLoader()->getAvailableTypes();
         for (const QString& type : availableTypes) {

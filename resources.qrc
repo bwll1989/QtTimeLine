@@ -18,6 +18,9 @@
     <file>icons/pause.png</file>
     <file>icons/zoomin.png</file>
     <file>icons/zoomout.png</file>
+    <file>icons/location.png</file>
+    <file>icons/trash.png</file>
+    <file>icons/add.png</file>
     <file>icons/DefaultDark.qss</file>
   </qresource>
 </RCC>

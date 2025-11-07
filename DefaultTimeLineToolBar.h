@@ -73,6 +73,10 @@ signals:
      * 缩小点击
      */
     void zoomOutClicked();
+    /**
+     *
+     */
+    void locationClicked();
 public slots:
     /**
      * 设置播放状态
@@ -129,6 +133,8 @@ private:
     QAction* m_zoomOutAction;
     //输出窗口动作
     QAction* m_outputAction;
+    //
+    QAction* m_locationAction;
     //是否播放
     bool m_isPlaying = false;
 };

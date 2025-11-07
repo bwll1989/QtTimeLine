@@ -57,7 +57,7 @@ set(INCLUDES
         TimeCodeDefines.h
         OSCMessage.h
         DefaultTimeLineToolBar.h
-
+        ClipTimePanel.hpp
 )
 # 源文件列表
 set(SOURCES
@@ -70,6 +70,7 @@ set(SOURCES
         BaseTrackListView.cpp
         DefaultTimeLineToolBar.cpp
         resources.qrc
+        ClipTimePanel.cpp
 )
 set(QRC_FILES
         resources.qrc
@@ -127,6 +128,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 # 添加插件子目录
 add_subdirectory(clips/ControlClip)
 add_subdirectory(clips/VideoClip)
+add_subdirectory(clips/TriggerClip)
 # 添加示例项目
 add_subdirectory(example) 
 

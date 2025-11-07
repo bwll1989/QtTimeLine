@@ -95,7 +95,7 @@ inline double timescale = 0.5; // 时间刻度(像素/帧)
  *   若出现刻度文本过密、重叠，可适当增大 minTimescale 或配合刻度步长自适应策略。
  * - 与 currentScale 的关系：当 currentScale=0 时应映射到 minTimescale，以保证最小缩放可达。
  */
-inline double minTimescale = 0.05; // 最小缩放(像素/帧)，可按需调小，如 0.02
+inline double minTimescale = 0.005; // 最小缩放(像素/帧)，可按需调小，如 0.02
 
 inline int playheadwidth = 5; //播放头宽度
 

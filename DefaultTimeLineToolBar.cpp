@@ -131,6 +131,10 @@ void DefaultTimeLineToolBar::createActions()
     m_zoomOutAction->setToolTip(tr("Zoom Out"));
     connect(m_zoomOutAction, &QAction::triggered, this, &DefaultTimeLineToolBar::zoomOutClicked);
 
+    m_locationAction=new QAction(this);
+    m_locationAction->setIcon(QIcon(":/icons/icons/location.png"));
+    m_locationAction->setToolTip(tr("Focus cursor"));
+    connect(m_locationAction, &QAction::triggered, this, &DefaultTimeLineToolBar::locationClicked);
 }
 
 void DefaultTimeLineToolBar::setupUI()
@@ -168,6 +172,7 @@ void DefaultTimeLineToolBar::setupUI()
     BaseTimelineToolbar::registerOSCControl("/zoomIn",m_zoomInAction);
     addAction(m_zoomOutAction);
     BaseTimelineToolbar::registerOSCControl("/zoomOut",m_zoomOutAction);
+    addAction(m_locationAction);
     // 设置工具栏样式
     setMovable(false);
     setIconSize(QSize(toolbarButtonWidth, toolbarButtonWidth));
