@@ -2,6 +2,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QtMath>
+#include <QTimer>
 #include "DefaultTimeLineToolBar.h"
 BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent)
         : Model(viewModel), QAbstractItemView{parent}
@@ -29,16 +30,23 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
 
     // 连接循环播放信号
 
-        // 当视频窗口关闭时，更新工具栏按钮状态
-        connect(Model,&BaseTimeLineModel::S_clipGeometryChanged,this,&BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimeLineModel::S_trackAdd, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimeLineModel::S_trackDelete, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimeLineModel::S_trackMoved, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimeLineModel::S_addClip, this, &BaseTimelineView::onUpdateViewport);
-        connect(Model, &BaseTimeLineModel::S_playheadMoved, this, &BaseTimelineView::onUpdateViewport);
-
         installEventFilter(this);
 
+        // ========== 新增：初始化重绘合并定时器 ==========
+        m_redrawCoalesceTimer = new QTimer(this);
+        m_redrawCoalesceTimer->setSingleShot(true);
+        connect(m_redrawCoalesceTimer, &QTimer::timeout, this, [this]() {
+            performRedraw();
+        });
+        // ========== 新增结束 ==========
+
+        // 优化：模型事件触发时，统一合并重绘，而不是每次都立即 onUpdateViewport
+        connect(Model, &BaseTimeLineModel::S_clipGeometryChanged, this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_trackAdd,            this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_trackDelete,         this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_trackMoved,          this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_addClip,             this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_playheadMoved,       this, [this]() { scheduleRedraw(); });
 
     }
 
@@ -92,10 +100,10 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
                     QRect clipRect = visualRect(clipIndex);
 
                     // 最小命中宽度保护：当片段过窄时，临时扩大命中区域以保证可点击
-                    const int minHitWidth = 8;
+                    const int minHitWidth = 15;
                     if (clipRect.width() < minHitWidth) {
-                        int pad = (minHitWidth - clipRect.width()) / 2;
-                        clipRect.adjust(-pad, 0, pad, 0);
+                        int pad = (minHitWidth - clipRect.width()) ;
+                        clipRect.adjust(0, 0, pad, 0);
                         // 约束在轨道矩形范围内，避免越界
                         clipRect = clipRect.intersected(trackRect);
                     }
@@ -185,9 +193,7 @@ void BaseTimelineView::moveSelectedClip(int dx, int dy, bool isMouse)
     newPos = std::max(0, newPos);
     // 更新模型数据
     getModel()->setData(list.first(), newPos, TimelineRoles::ClipPosRole);
-    updateEditorGeometries();
-    updateScrollBars();
-    viewport()->update();
+    scheduleRedraw();
 }
 
 void BaseTimelineView::movePlayheadToFrame(int frame)
@@ -195,22 +201,38 @@ void BaseTimelineView::movePlayheadToFrame(int frame)
     //  qDebug() << "movePlayheadToFrame" << frame;
     // 直接设置时间码生成器的帧位置
     getModel()->onSetPlayheadPos(frame);
-    viewport()->update();
+    scheduleRedraw();
 }
 
 void BaseTimelineView::onUpdateViewport(){
-    updateEditorGeometries();
-    updateScrollBars();
-    viewport()->update();
+    scheduleRedraw();
 }
 
 // 滚动视图
-void BaseTimelineView::onScroll(int dx, int dy){
-    m_scrollOffset -= QPoint(dx, dy);
-    QAbstractItemView::scrollContentsBy(dx, dy);
+void BaseTimelineView::scheduleRedraw(int delayMs) {
+    if (!m_redrawCoalesceTimer) return;
+    // 如果定时器已在等待中，无需重复启动；让多次请求自然合并
+    if (!m_redrawCoalesceTimer->isActive()) {
+        m_redrawCoalesceTimer->start(delayMs);
+    }
+}
+
+void BaseTimelineView::performRedraw() {
+    if (m_isRedrawing) return;
+    m_isRedrawing = true;
+
+    // 统一重绘流程
     updateEditorGeometries();
     updateScrollBars();
     viewport()->update();
+
+    m_isRedrawing = false;
+}
+
+void BaseTimelineView::onScroll(int dx, int dy){
+    m_scrollOffset -= QPoint(dx, dy);
+    QAbstractItemView::scrollContentsBy(dx, dy);
+    scheduleRedraw();
 }
 void BaseTimelineView::horizontalScroll(double position)
 {
@@ -221,9 +243,8 @@ void BaseTimelineView::horizontalScroll(double position)
     // 设置滚动条位置
     horizontalScrollBar()->setValue(newScrollValue);
 
-    // 更新编辑器位置
-    updateEditorGeometries();
-    viewport()->update();
+    // 更新编辑器位置与视图（优化为合并重绘）
+    scheduleRedraw();
 }
 // 更新滚动条
 void BaseTimelineView::updateScrollBars()
@@ -240,7 +261,7 @@ void BaseTimelineView::scrollContentsBy(int dx, int dy)
 {
     m_scrollOffset -= QPoint(dx, dy);
     QAbstractItemView::scrollContentsBy(dx, dy);
-    updateEditorGeometries();
+    scheduleRedraw();
 }
 
 int BaseTimelineView::pointToFrame(int point) const
@@ -276,7 +297,7 @@ void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
         int targetScroll = playheadX - viewWidth / 2;
         targetScroll = qBound(0, targetScroll, maxScroll);
         horizontalScrollBar()->setValue(targetScroll);
-        viewport()->update();
+        scheduleRedraw();
     });
     contextMenu.addAction(focusCursorAction);
 
@@ -342,8 +363,8 @@ void BaseTimelineView::addClipAtPosition(const QModelIndex& index, const QPoint&
 
     getModel()->onAddClip(trackIndex,startFrame);
 
-    // 更新视图
-    onUpdateViewport();
+    // 更新视图（优化为合并重绘）
+    scheduleRedraw();
 }
 
 void BaseTimelineView::mouseReleaseEvent(QMouseEvent *event)
@@ -410,16 +431,13 @@ void BaseTimelineView::setScale(double value)
 
     // 6. 更新界面
     currentScale = ratio;
-    qDebug()<<"currentScale:"<<currentScale;
-    updateEditorGeometries();
-    updateScrollBars();
-    viewport()->update();
+    // qDebug()<<"currentScale:"<<currentScale;
+    scheduleRedraw();
 }
 
 void BaseTimelineView::resizeEvent(QResizeEvent *event)
 {
-    updateScrollBars();
-    updateEditorGeometries();
+    scheduleRedraw();
     QAbstractItemView::resizeEvent(event);
 
     // 更新ZoomController
@@ -517,7 +535,7 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
     // 处理播放头拖动
     if (m_playheadSelected) {
         movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
-        viewport()->update();
+        scheduleRedraw();
         return;
     }
     
@@ -526,7 +544,7 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
     if (selectedIndexes.isEmpty() || m_mouseEnd.x() < 0) {
         // 没有选中片段，移动播放头
         movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
-        viewport()->update();
+        scheduleRedraw();
         return;
     }
     
@@ -547,7 +565,6 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
             if (clip && clip->isResizable()) {
                 int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
                 getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
-                updateEditorGeometries();
             }
             break;
             
@@ -556,7 +573,6 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
             if (clip && clip->isResizable()) {
                 int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
                 getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
-                updateEditorGeometries();
             }
             break;
             
@@ -564,7 +580,7 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
             break;
     }
     
-    viewport()->update();
+    scheduleRedraw();
 }
 
 /**

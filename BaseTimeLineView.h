@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QAbstractItemView>
 #include <unordered_map>
@@ -66,7 +66,8 @@ signals:
     void currentClipChanged(AbstractClipModel* clip);
 public slots:
     /**
-     * 更新可视区域
+     * 更新可视区域（原方法）
+     * 优化：改为调用 scheduleRedraw 合并重绘，避免每次信号都立即执行完整重绘。
      */
     virtual void onUpdateViewport();
     /**
@@ -390,7 +391,31 @@ protected:
     // 鼠标悬停索引
     QModelIndex m_hoverIndex = QModelIndex();
 
+    // ========== 新增：重绘合并机制 ==========
+    /**
+     * 合并重绘请求（去抖）
+     * - 将多次重绘请求在 delayMs 毫秒内合并为一次，默认 16ms（约一帧）
+     * - 降低 updateEditorGeometries/updateScrollBars/viewport()->update 的调用频率
+     */
+    void scheduleRedraw(int delayMs = 16);
+
+    /**
+     * 统一执行一次重绘（实际操作）
+     * - 防重入：使用 m_isRedrawing，避免重入引发递归或重复开销
+     * - 执行 updateEditorGeometries、updateScrollBars、viewport()->update
+     */
+    void performRedraw();
+
+    // 合并重绘用的定时器（单次触发）
+    QTimer* m_redrawCoalesceTimer {nullptr};
+
+    // 防重入标志：防止 performRedraw 期间再次触发 performRedraw
+    bool m_isRedrawing {false};
+    // ========== 新增结束 ==========
 };
+
+
+
 
 
 

@@ -436,7 +436,6 @@ void BaseTimeLineModel::load(const QJsonObject &modelJson) {
                     clipJson["type"].toString(),
                     clipJson["start"].toInt()
                 );
-				qDebug() << "Creating clip of type:" << clipJson["type"].toString();
                 clip->setTimeCodeType(getTimeCodeType());
                 if(clip) {
                     // 加载片段数据

@@ -185,12 +185,21 @@ virtual QJsonObject save() const {
      * 加载
      * @param const QJsonObject& json 数据
      */
-virtual void load(const QJsonObject& json) {
-    m_start = json["start"].toInt();
-    m_end = json["end"].toInt();
-    m_type = json["type"].toString();
-    m_id = json["Id"].toInt();
-}
+    /**
+     * @brief 从 JSON 加载片段模型并通知界面刷新
+     * @details 读取 start/end/type/Id 后，主动发出 timelinePositionChanged 与 lengthChanged，
+     *          以便 ClipTimePanel 等已连接的控件能显示真实数据（避免默认 start+100）。
+     */
+    virtual void load(const QJsonObject& json) {
+        m_start = json["start"].toInt();
+        m_end   = json["end"].toInt();
+        m_type  = json["type"].toString();
+        m_id    = json["Id"].toInt();
+
+        // 发出信号以刷新 UI 显示
+        emit timelinePositionChanged(m_start);
+        emit lengthChanged(m_end);
+    }
     /**
      * 获取数据
      * @param int role 角色
