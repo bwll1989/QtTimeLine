@@ -444,6 +444,7 @@ void BaseTimeLineModel::load(const QJsonObject &modelJson) {
                     
                     // 连接信号
                     connect(clip, &AbstractClipModel::lengthChanged, [this]() {
+                        onUpdateTimeLineLength();
                         emit S_clipGeometryChanged();
                     });
                     connect(clip, &AbstractClipModel::timelinePositionChanged, [this]() {
