@@ -124,10 +124,11 @@ virtual void setStart(int start) {
 
     }
 }
-    /**
-     * 设置结束
-     * @param int end 结束
-     */
+virtual void setMedia(const QVariant& filePath){};
+/**
+ * 设置结束
+ * @param int end 结束
+ */
 virtual void setEnd(int end) { 
     if (m_end != end) {
         if(RESIZEABLE){

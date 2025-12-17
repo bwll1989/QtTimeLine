@@ -48,6 +48,8 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         connect(Model, &BaseTimeLineModel::S_addClip,             this, [this]() { scheduleRedraw(); });
         connect(Model, &BaseTimeLineModel::S_playheadMoved,       this, [this]() { scheduleRedraw(); });
 
+        // 从当前属性应用颜色，支持 QSS 的 qproperty- 语法
+        applyStyleFromProperties();
     }
 
 BaseTimelineView::~BaseTimelineView()
@@ -124,21 +126,18 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
 
 QRect BaseTimelineView::itemRect(const QModelIndex &index) const
 {
-
-
     if (!index.isValid()) {
-    return QRect();
+        return QRect();
     }
-
     // 获取轨道宽度
     int trackwidth = getTrackWdith()+ viewport()->width();
     if(index.parent()==QModelIndex())
-    // 如果轨道索引
+        // 如果轨道索引
     {
         // 返回轨道矩形
         return QRect(0, (index.row() * trackHeight) + rulerHeight+toolbarHeight, trackwidth, trackHeight);
     }
-    // 如果剪辑索引
+     // 如果剪辑索引
     else{
         // 获取剪辑
         AbstractClipModel* clip = static_cast<AbstractClipModel*>(index.internalPointer());
@@ -160,7 +159,7 @@ QRect BaseTimelineView::itemRect(const QModelIndex &index) const
             // 返回剪辑矩形
             // qDebug()<<"rect"<<QRect(topLeft,QSize(clipWidth,trackHeight));
             return QRect(topLeft,QSize(clipWidth,trackHeight));
-    }
+        }
 
     }
     return QRect();
@@ -174,8 +173,6 @@ int BaseTimelineView::getTrackWdith() const
     }
     return frameToPoint(timelineLength + 1);  // 否则返回基于时间轴长度的宽度
 }
-
-
 
 // 移动选定的剪辑
 void BaseTimelineView::moveSelectedClip(int dx, int dy, bool isMouse)
@@ -371,9 +368,17 @@ void BaseTimelineView::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::RightButton) {
         // 处理左键按下的情况
-        QAbstractItemView::mousePressEvent(event);
+        QAbstractItemView::mouseReleaseEvent(event);
         return;
     }
+
+    // 结束画布平移模式
+    
+
+        m_isPanning = false;
+        // m_panMoved = false;
+  
+
     mouseHeld = false;
     m_playheadSelected = false;
     m_mouseEnd = event->pos();
@@ -463,24 +468,28 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
 
     // 清除当前选择
     selectionModel()->clearSelection();
+    // // 获取播放头位置
+    // int playheadPos = frameToPoint(((BaseTimeLineModel*)model())->getPlayheadPos());
+    // // 获取播放头矩形
+    // QRect playheadHitBox(QPoint(playheadPos-3,rulerHeight),QPoint(playheadPos+2,viewport()->height()));
+    // // 获取播放头矩形2
+    // QRect playheadHitBox2(QPoint(playheadPos-playheadwidth,-playheadheight + rulerHeight),QPoint(playheadPos+playheadwidth,rulerHeight));
+    // // 如果点击在播放头上
+    // if(playheadHitBox.contains(m_mouseStart) || playheadHitBox2.contains(m_mouseStart)) 
 
-    // 获取播放头位置
-    int playheadPos = frameToPoint(((BaseTimeLineModel*)model())->getPlayheadPos());
-    // 获取播放头矩形
-    QRect playheadHitBox(QPoint(playheadPos-3,rulerHeight),QPoint(playheadPos+2,viewport()->height()));
-    // 获取播放头矩形2
-    QRect playheadHitBox2(QPoint(playheadPos-playheadwidth,-playheadheight + rulerHeight),QPoint(playheadPos+playheadwidth,rulerHeight));
-    // 如果点击在播放头上
-    if(playheadHitBox.contains(m_mouseStart) || playheadHitBox2.contains(m_mouseStart)) {
-
+    //鼠标点击位置在标尺上就移动播放头
+    if (m_mouseStart.y() <= rulerHeight + toolbarHeight) 
+    {
         m_playheadSelected = true;
         return;
     }
-
-    m_playheadSelected = false;
-
-    // 获取点击位置的项
     QModelIndex item = indexAt(event->pos());
+    //如果点击在轨道上的的空白处
+    if(item.isValid() && !item.parent().isValid()) {
+        m_playheadSelected = true;
+        return;
+    }
+    m_playheadSelected = false;
 
     // 如果点击到了片段
     if(item.isValid() && item.parent().isValid()) {
@@ -488,14 +497,20 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
         selectionModel()->setCurrentIndex(item, QItemSelectionModel::ClearAndSelect);
         setCursor(Qt::ClosedHandCursor);
         m_mouseOffset.setX(frameToPoint(item.data(TimelineRoles::ClipInRole).toInt()) - m_mouseStart.x());
+        viewport()->update();
+        return;
     }
-    // else {
-    //     // 点击到空白区域或轨道
-    //     selectionModel()->clearSelection();
-    //     movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
-    // }
+    if(!item.isValid() && !item.parent().isValid()) {
+        // 点击在空白处，不在轨道、片段、播放头上
+        m_isPanning = true;
+        m_panStart = event->pos();
+        m_panInitialOffset = m_scrollOffset;
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
 
-    viewport()->update();
+    
 }
 
 /**
@@ -510,7 +525,6 @@ void BaseTimelineView::mouseMoveEvent(QMouseEvent *event)
         QAbstractItemView::mouseMoveEvent(event);
         return;
     }
-
     // 处理鼠标按住拖动的情况
     if (mouseHeld) {
         handleMouseDrag(event);
@@ -538,16 +552,29 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
         scheduleRedraw();
         return;
     }
-    
-    // 检查是否有选中的片段
-    QModelIndexList selectedIndexes = selectionModel()->selectedIndexes();
-    if (selectedIndexes.isEmpty() || m_mouseEnd.x() < 0) {
-        // 没有选中片段，移动播放头
-        movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
-        scheduleRedraw();
+    // 处理画布平移
+    if (m_isPanning) {
+        const int dx = event->pos().x() - m_panStart.x();
+        const int dy = event->pos().y() - m_panStart.y();
+        // 仅水平平移
+        QPoint newOffset = m_panInitialOffset - QPoint(dx, 0);
+
+        // 约束滚动范围
+        const int minX = 0;
+        const int maxX = qMax(minX, getTrackWdith() - viewport()->width());
+        newOffset.setX(qBound(minX, newOffset.x(), maxX));
+
+        if (newOffset != m_scrollOffset) {
+            m_scrollOffset = newOffset;
+            // m_panMoved = m_panMoved || (qAbs(dx) >= 1 || qAbs(dy) >= 1);
+            scheduleRedraw();
+        }
+        event->accept();
         return;
     }
-    
+    // 检查是否有选中的片段
+    QModelIndexList selectedIndexes = selectionModel()->selectedIndexes();
+
     // 处理片段操作
     QModelIndex clipIndex = selectedIndexes.first();
     AbstractClipModel* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
@@ -597,30 +624,37 @@ void BaseTimelineView::updateMouseHoverState(QMouseEvent *event)
     m_mouseUnderClipEdge = hoverState::NONE;
     
     // 检查是否悬停在片段上
-    bool isValidClip = m_hoverIndex.isValid() && m_hoverIndex.parent().isValid();
-    if (!isValidClip) {
+    // bool isValidClip = m_hoverIndex.isValid() && m_hoverIndex.parent().isValid();
+    if (m_hoverIndex.isValid() && m_hoverIndex.parent().isValid())
+     {
+        // 获取片段对象
+        AbstractClipModel* clip = static_cast<AbstractClipModel*>(m_hoverIndex.internalPointer());
+        if (!clip) {
+            return;
+        }
+        // 设置悬停状态为中心
+        m_mouseUnderClipEdge = hoverState::CENTER;
+        // 检查是否可调整大小的片段
+        if (clip->isResizable()) {
+            // 检查是否在左边缘
+            if (abs(pos.x() - rect.left()) <= 5) {
+                m_mouseUnderClipEdge = hoverState::LEFT;
+            }
+            // 检查是否在右边缘
+            else if (abs(pos.x() - rect.right()) <= 5) {
+                m_mouseUnderClipEdge = hoverState::RIGHT;
+            }
+        }
         return;
     }
-    
-    // 获取片段对象
-    AbstractClipModel* clip = static_cast<AbstractClipModel*>(m_hoverIndex.internalPointer());
-    if (!clip) {
+    if (m_hoverIndex.isValid() && !m_hoverIndex.parent().isValid())
+    {
+        //悬浮在轨道上时
         return;
     }
-    
-    // 设置悬停状态为中心
-    m_mouseUnderClipEdge = hoverState::CENTER;
-    
-    // 检查是否可调整大小的片段
-    if (clip->isResizable()) {
-        // 检查是否在左边缘
-        if (abs(pos.x() - rect.left()) <= 5) {
-            m_mouseUnderClipEdge = hoverState::LEFT;
-        }
-        // 检查是否在右边缘
-        else if (abs(pos.x() - rect.right()) <= 5) {
-            m_mouseUnderClipEdge = hoverState::RIGHT;
-        }
+    if (!m_hoverIndex.isValid() && !m_hoverIndex.parent().isValid())
+    {
+        return;
     }
 }
 
@@ -795,10 +829,10 @@ void BaseTimelineView::paintEvent(QPaintEvent *event)
 void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
 {
     // 绘制背景
-    painter->fillRect(rect, bgColour);
+    painter->fillRect(rect, m_timelineBgColor);
 
     // 设置分割线颜色并绘制轨道分隔线
-    painter->setPen(seperatorColour);
+    painter->setPen(m_timelineSeparatorColor);
     for (int i = 0; i < model()->rowCount(); ++i) {
         int trackSplitter = (i+1) * trackHeight + rulerHeight + toolbarHeight - m_scrollOffset.y();
         painter->drawLine(0, trackSplitter, rect.width(), trackSplitter);
@@ -868,8 +902,8 @@ void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
      */
 
     // 绘制标尺背景
-    painter->setPen(rulerColour);
-    painter->setBrush(QBrush(bgColour));
+    painter->setPen(m_timelineRulerColor);
+    painter->setBrush(QBrush(m_timelineBgColor));
     painter->drawRect(-m_scrollOffset.x(), 0,
                      rect.width() + m_scrollOffset.x(),
                      rulerHeight + toolbarHeight);
@@ -962,11 +996,99 @@ void BaseTimelineView::drawPlayhead(QPainter* painter)
     }
 
     // 设置画笔和画刷颜色并绘制
-    painter->setPen(playheadColour);
-    painter->setBrush(playheadColour);
+    painter->setPen(m_timelinePlayheadColor);
+    painter->setBrush(m_timelinePlayheadColor);
     painter->drawConvexPolygon(kite, 5);
     painter->drawLine(QPoint(playheadPos, rulerHeight + toolbarHeight),
                      QPoint(playheadPos, viewport()->height()));
+}
+
+/**
+ * 设置时间线背景色
+ * @param QColor color 背景色
+ */
+void BaseTimelineView::setTimelineBgColor(const QColor& color) {
+    m_timelineBgColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置时间线分隔线颜色
+ * @param QColor color 分隔线颜色
+ */
+void BaseTimelineView::setTimelineSeparatorColor(const QColor& color) {
+    m_timelineSeparatorColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置标尺颜色
+ * @param QColor color 标尺颜色
+ */
+void BaseTimelineView::setTimelineRulerColor(const QColor& color) {
+    m_timelineRulerColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置播放头颜色
+ * @param QColor color 播放头颜色
+ */
+void BaseTimelineView::setTimelinePlayheadColor(const QColor& color) {
+    m_timelinePlayheadColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置片段填充颜色
+ * @param QColor color 片段填充颜色
+ */
+void BaseTimelineView::setClipFillColor(const QColor& color) {
+    m_clipFillColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置片段边框颜色
+ * @param QColor color 片段边框颜色
+ */
+void BaseTimelineView::setClipBorderColor(const QColor& color) {
+    m_clipBorderColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 设置轨道选中颜色
+ * @param QColor color 轨道选中颜色
+ */
+void BaseTimelineView::setTrackSelectedColor(const QColor& color) {
+    m_trackSelectedColor = color;
+    applyStyleFromProperties();
+    viewport()->update();
+}
+/**
+ * 样式变化事件处理，确保 QSS 生效后刷新颜色
+ * @param QEvent* e 事件
+ */
+void BaseTimelineView::changeEvent(QEvent* e) {
+    QAbstractItemView::changeEvent(e);
+    if (e->type() == QEvent::StyleChange || e->type() == QEvent::PaletteChange) {
+        applyStyleFromProperties();
+        viewport()->update();
+    }
+}
+/**
+ * 从属性应用颜色到全局样式（兼容旧绘制逻辑和其他文件使用的全局色）
+ */
+void BaseTimelineView::applyStyleFromProperties() {
+    // 更新旧代码使用的全局颜色（TimeLineStyle.h）
+    bgColour            = m_timelineBgColor;
+    seperatorColour     = m_timelineSeparatorColor;
+    rulerColour         = m_timelineRulerColor;
+    playheadColour      = m_timelinePlayheadColor;
+    ClipColor           = m_clipFillColor;
+    ClipBorderColour    = m_clipBorderColor;
+    trackSelectedColour = m_trackSelectedColor;
 }
 
 void BaseTimelineView::drawTracks(QPainter* painter)

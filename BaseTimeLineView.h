@@ -19,6 +19,14 @@
 class NODE_TIMELINE_PUBLIC BaseTimelineView : public QAbstractItemView
 {
 Q_OBJECT
+    // 允许通过 QSS 设置颜色：qproperty-<name>: <color>
+    Q_PROPERTY(QColor timelineBgColor READ timelineBgColor WRITE setTimelineBgColor)
+    Q_PROPERTY(QColor timelineSeparatorColor READ timelineSeparatorColor WRITE setTimelineSeparatorColor)
+    Q_PROPERTY(QColor timelineRulerColor READ timelineRulerColor WRITE setTimelineRulerColor)
+    Q_PROPERTY(QColor timelinePlayheadColor READ timelinePlayheadColor WRITE setTimelinePlayheadColor)
+    Q_PROPERTY(QColor clipFillColor READ clipFillColor WRITE setClipFillColor)
+    Q_PROPERTY(QColor clipBorderColor READ clipBorderColor WRITE setClipBorderColor)
+    Q_PROPERTY(QColor trackSelectedColor READ trackSelectedColor WRITE setTrackSelectedColor)
 public:
     // 构造函数，初始化视图模型
     explicit BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent = nullptr);
@@ -226,6 +234,76 @@ protected:
      */
     virtual void wheelEvent(QWheelEvent *event) override;
     /**
+     * 获取时间线背景色
+     * @return QColor 背景色
+     */
+    QColor timelineBgColor() const { return m_timelineBgColor; }
+    /**
+     * 设置时间线背景色
+     * @param QColor color 背景色
+     */
+    void setTimelineBgColor(const QColor& color);
+    /**
+     * 获取时间线分隔线颜色
+     * @return QColor 分隔线颜色
+     */
+    QColor timelineSeparatorColor() const { return m_timelineSeparatorColor; }
+    /**
+     * 设置时间线分隔线颜色
+     * @param QColor color 分隔线颜色
+     */
+    void setTimelineSeparatorColor(const QColor& color);
+    /**
+     * 获取标尺颜色
+     * @return QColor 标尺颜色
+     */
+    QColor timelineRulerColor() const { return m_timelineRulerColor; }
+    /**
+     * 设置标尺颜色
+     * @param QColor color 标尺颜色
+     */
+    void setTimelineRulerColor(const QColor& color);
+    /**
+     * 获取播放头颜色
+     * @return QColor 播放头颜色
+     */
+    QColor timelinePlayheadColor() const { return m_timelinePlayheadColor; }
+    /**
+     * 设置播放头颜色
+     * @param QColor color 播放头颜色
+     */
+    void setTimelinePlayheadColor(const QColor& color);
+    /**
+     * 获取片段填充颜色
+     * @return QColor 片段填充颜色
+     */
+    QColor clipFillColor() const { return m_clipFillColor; }
+    /**
+     * 设置片段填充颜色
+     * @param QColor color 片段填充颜色
+     */
+    void setClipFillColor(const QColor& color);
+    /**
+     * 获取片段边框颜色
+     * @return QColor 片段边框颜色
+     */
+    QColor clipBorderColor() const { return m_clipBorderColor; }
+    /**
+     * 设置片段边框颜色
+     * @param QColor color 片段边框颜色
+     */
+    void setClipBorderColor(const QColor& color);
+    /**
+     * 获取轨道选中颜色
+     * @return QColor 轨道选中颜色
+     */
+    QColor trackSelectedColor() const { return m_trackSelectedColor; }
+    /**
+     * 设置轨道选中颜色
+     * @param QColor color 轨道选中颜色
+     */
+    void setTrackSelectedColor(const QColor& color);
+    /**
      * 绘制垂直时间线
      * @param QPainter* painter 绘图设备
      * @param QRect& rect 矩形
@@ -412,8 +490,34 @@ protected:
     // 防重入标志：防止 performRedraw 期间再次触发 performRedraw
     bool m_isRedrawing {false};
     // ========== 新增结束 ==========
+    /**
+     * 画布平移状态
+     * - m_isPanning: 是否处于拖动画布模式
+     * - m_panStart: 鼠标按下的起始点（viewport 坐标）
+     * - m_panInitialOffset: 拖拽开始时的滚动偏移
+     * - m_panMoved: 是否在拖拽中产生了足够位移（用于区分点击与拖拽）
+     */
+    bool m_isPanning = false;
+    QPoint m_panStart;
+    QPoint m_panInitialOffset;
+    /**
+     * 处理样式变化事件（QSS/调色板变更）
+     * @param QEvent* e 事件
+     */
+    virtual void changeEvent(QEvent* e) override;
+    /**
+     * 从属性应用颜色到全局样式（兼容旧绘制逻辑）
+     */
+    void applyStyleFromProperties();
+    // 基于 TimeLineStyle.h 的默认值初始化，可被 QSS 属性覆盖
+    QColor m_timelineBgColor       = bgColour;
+    QColor m_timelineSeparatorColor= seperatorColour;
+    QColor m_timelineRulerColor    = rulerColour;
+    QColor m_timelinePlayheadColor = playheadColour;
+    QColor m_clipFillColor         = ClipColor;
+    QColor m_clipBorderColor       = ClipBorderColour;
+    QColor m_trackSelectedColor    = trackSelectedColour;
 };
-
 
 
 

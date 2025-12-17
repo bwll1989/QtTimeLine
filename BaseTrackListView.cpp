@@ -3,6 +3,7 @@
 #include <QMimeData>
 #include <QMenu>
 BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *parent): Model(viemModel), QAbstractItemView{parent}{
+    setObjectName("TrackListView");
     setModel(Model);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -35,7 +36,28 @@ BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *pare
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded ) ;
     setVerticalScrollBarPolicy( Qt::ScrollBarAsNeeded) ;
     installEventFilter(this);
+    
+    
 }
+
+void BaseTracklistView::setTrackColor(const QColor &color)
+{
+    m_trackColor = color;
+    viewport()->update();
+}
+
+void BaseTracklistView::setTrackSelectedColor(const QColor &color)
+{
+    m_trackSelectedColor = color;
+    viewport()->update();
+}
+
+void BaseTracklistView::setTrackHoverColor(const QColor &color)
+{
+    m_trackHoverColor = color;
+    viewport()->update();
+}
+
 /**
  * @brief 删除轨道
  */
@@ -325,7 +347,7 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
     QPainter painter(viewport());
     painter.save();  // 保存状态
     painter.setRenderHint(QPainter::Antialiasing,true);
-    painter.setBrush(QBrush(bgColour));
+    painter.setBrush(QBrush(m_trackBgColor));
 
     // Draw tracklist
     int viewportWidth = viewport()->width();
@@ -336,13 +358,13 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         QModelIndex trackIndex = model()->index(i,0);
         openPersistentEditor(model()->index(i,0));
         if(selectionModel()->isSelected(trackIndex)){
-           painter.setBrush(QBrush(trackSelectedColour));
+           painter.setBrush(QBrush(m_trackSelectedColor));
         }else
         if(m_hoverIndex==trackIndex && !selectionModel()->isSelected(trackIndex)){
-            painter.setBrush(QBrush(trackHoverColour));
+            painter.setBrush(QBrush(m_trackHoverColor));
         }
         else{
-            painter.setBrush(QBrush(trackColour));
+            painter.setBrush(QBrush(m_trackColor));
         }
         // painter.drawLine(visualRect(trackIndex).bottomLeft(),visualRect(trackIndex).bottomRight());
         // itemDelegate(trackIndex)->paint(&painter, option, trackIndex);
@@ -356,7 +378,7 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
 
 void BaseTracklistView::drawTitle(QPainter *painter)
 {
-    painter->setBrush(QBrush(bgColour));
+    painter->setBrush(QBrush(m_trackBgColor));
     QRect rect(0,  0, viewport()->width(), rulerHeight+toolbarHeight);
     painter->drawRect(rect);
     painter->setPen(fontColor);

@@ -239,6 +239,24 @@ QTreeWidget::item:hover {
     border-left-color: #0078d4;
 }
 
+/* ======= BaseTracklistView 样式 (自定义属性) ======= */
+BaseTracklistView {
+    /* background-color: transparent; */
+    border: none;
+    outline: 0;
+    qproperty-trackColor: #353535;
+    qproperty-trackBgColor: #1e1d23;
+    qproperty-trackSelectedColor: #0078d4;
+    qproperty-trackHoverColor: #2a292f;
+}
+
+/* 注意：由于使用了自定义绘制和属性，标准的 ::item 伪状态可能部分无效，
+   但仍然保留以防未来改为标准绘制 */
+BaseTracklistView::item {
+    height: 40px;
+    border-left: 2px solid transparent;
+}
+
 /* ======= 滚动条样式 ======= */
 QScrollBar:vertical {
     background-color: transparent;
