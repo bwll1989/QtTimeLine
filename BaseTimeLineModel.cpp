@@ -208,7 +208,7 @@ QVariant BaseTimeLineModel::clipData(ClipId clipID, TimelineRoles role) const
                         result= QVariant::fromValue(clip);
                         break;
                     case ClipOscWidgetsRole:
-                        result=QVariant::fromValue(clip->getOscMapping());
+                        result=QVariant::fromValue(clip->getExternalControlAddressMapping());
                         break;
                     default:
                         break;

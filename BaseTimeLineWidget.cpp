@@ -38,7 +38,7 @@ void BaseTimelineWidget::createComponents() {
     splitter = new QSplitter(Qt::Horizontal, this);
     splitter->addWidget(tracklist);
     splitter->addWidget(view);
-    splitter->setHandleWidth(0);
+    splitter->setHandleWidth(1);
     splitter->setMouseTracking(true);
     splitter->setSizes({200, 900});
     

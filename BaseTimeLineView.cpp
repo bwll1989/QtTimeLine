@@ -7,6 +7,8 @@
 BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent)
         : Model(viewModel), QAbstractItemView{parent}
     {
+        setObjectName("TimelineView");
+        setFrameShape(QFrame::NoFrame);
         setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         setVerticalScrollBarPolicy(Qt:: ScrollBarAlwaysOff);
         setModel(Model);
@@ -15,7 +17,7 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         verticalScrollBar()->setSingleStep(trackHeight);
         verticalScrollBar()->setPageStep(trackHeight * 5);
         viewport()->setMinimumHeight(trackHeight + rulerHeight + toolbarHeight);
-        setMinimumHeight(trackHeight + rulerHeight + toolbarHeight);
+        // setMinimumHeight(trackHeight + rulerHeight + toolbarHeight);
         QItemSelectionModel* selModel = new QItemSelectionModel(Model, this);
         setSelectionModel(selModel);
         setSelectionMode(QAbstractItemView::SingleSelection);
@@ -62,9 +64,9 @@ BaseTimelineView::~BaseTimelineView()
 void BaseTimelineView::initToolBar(BaseTimelineToolbar* new_toolbar)
 {
     m_toolbar=new_toolbar;
-    m_toolbar->setFixedHeight(toolbarHeight-4);
+    m_toolbar->setFixedHeight(toolbarHeight-6);
     // 设置工具栏位置
-    m_toolbar->move(0, 2);
+    m_toolbar->move(4, 4);
 
 }
 

@@ -14,7 +14,7 @@ TriggerClipModel(int start): AbstractClipModel(start, "Trigger"),
    
     // 片段正常颜色
     ClipColor=QColor("#CC0033");
-
+    qDebug()<<"trigger clip model created"<<m_id;
 }
 virtual ~TriggerClipModel() override =default;
 // 重写保存和加载函数

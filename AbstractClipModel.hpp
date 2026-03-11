@@ -63,7 +63,7 @@ public:
 
 ClipId id() const { return m_id; }
 
-void setId(ClipId id) { m_id = id; }
+virtual void setId(ClipId id) { m_id = id; }
     // Getters
     /**
      * 开始
@@ -210,6 +210,8 @@ virtual QVariant data(int role) const {
     switch (role) {
         case TimelineRoles::ClipModelRole:
             return QVariant::fromValue<AbstractClipModel*>(const_cast<AbstractClipModel*>(this));
+        case TimelineRoles::TrackNameRole:
+            return QVariant::fromValue<QString>(m_type);
         default:
             return QVariant();
     }
@@ -276,8 +278,8 @@ virtual void initPropertyWidget(){
         contentLayout->addWidget(m_clipPropertyWidget);
     }
 
-    // 添加弹簧以确保内容在顶部
-    contentLayout->addStretch();
+    // // 添加弹簧以确保内容在顶部
+    // contentLayout->addStretch();
 
     // 将内容 widget 添加到主布局
     m_layout->addWidget(contentWidget);
@@ -300,7 +302,7 @@ virtual void paint(QPainter* painter, const QRect& rect, bool selected) const {
 /**
  * 注册控件OSC地址和Widget指针
  */
-virtual void registerOSCControl(const QString& oscAddress, QWidget* control)
+virtual void registerExternalControl(const QString& oscAddress, QWidget* control)
 {
     // 如果oscAddress不以"/"开头，则不注册
     if (!oscAddress.startsWith("/")) return;
@@ -320,7 +322,7 @@ virtual void registerOSCControl(const QString& oscAddress, QWidget* control)
 /**
  * 注销控件OSC地址和Widget指针
  */
-virtual void unregisterOSCControl(const QString& oscAddress)
+virtual void unregisterExternalControl(const QString& oscAddress)
 {
     if (!oscAddress.startsWith("/")) return;
     auto it = _OscMapping.find(oscAddress);
@@ -331,7 +333,7 @@ virtual void unregisterOSCControl(const QString& oscAddress)
 /**
  * 获取控件OSC地址和Widget指针
  */
-virtual QWidget* getWidgetFromOSCAddress(const QString& oscAddress) const
+virtual QWidget* getWidgetFromAddress(const QString& oscAddress) const
 {
     auto it = _OscMapping.find(oscAddress);
     return it != _OscMapping.end() ? it->second : nullptr;
@@ -339,7 +341,7 @@ virtual QWidget* getWidgetFromOSCAddress(const QString& oscAddress) const
 /**
  * 获取OSC地址和控件的映射
  */
-virtual std::unordered_map<QString, QWidget*> getOscMapping() const
+virtual std::unordered_map<QString, QWidget*> getExternalControlAddressMapping() const
 {
     return _OscMapping;
 }
@@ -433,7 +435,7 @@ protected:
     
         QByteArray itemData;
         QDataStream dataStream(&itemData, QIODevice::WriteOnly);
-        dataStream << message.host << message.port << message.address << message.value<<message.type;
+        dataStream << message.host << message.port << message.address <<message.type<<message.value;
     
         QMimeData* mimeData = new QMimeData;
         mimeData->setData("application/x-osc-address", itemData);

@@ -47,6 +47,7 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
     m_timeLayout->addWidget(endLabel, 2, 0,1,1);
     m_timeLayout->addWidget(m_endFrameSpinBox, 2, 1,1,1);
     m_timeLayout->addWidget(m_endTimeCodeLineEdit, 2, 2,1,1);
+    setMaximumHeight(150);
     updateStartFrame(m_owner->start());
     updateEndFrame(m_owner->end());
     updatePositionFrame(m_owner->start());

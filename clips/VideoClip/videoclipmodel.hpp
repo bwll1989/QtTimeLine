@@ -15,7 +15,7 @@ VideoClipModel(int start): AbstractClipModel(start, "Video"),
    
     // 片段正常颜色
     ClipColor=QColor("#CC0033");
-
+    qDebug()<<"VideoClipModel created"<<m_id;
 }
 virtual ~VideoClipModel() override =default;
 // 重写保存和加载函数
@@ -57,7 +57,7 @@ QWidget* clipPropertyWidget() override{
     // 测试按钮
     auto* sendButton = new QPushButton("测试发送", m_editor);
     sendButton->setCheckable(true);
-    registerOSCControl("/button",sendButton);
+    registerExternalControl("/button",sendButton);
     playLayout->addWidget(sendButton);
     mainLayout->addWidget(playGroup);
     return m_editor;
