@@ -18,8 +18,14 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
         verticalScrollBar()->setPageStep(trackHeight * 5);
         viewport()->setMinimumHeight(trackHeight + rulerHeight + toolbarHeight);
         // setMinimumHeight(trackHeight + rulerHeight + toolbarHeight);
-        QItemSelectionModel* selModel = new QItemSelectionModel(Model, this);
-        setSelectionModel(selModel);
+
+        /**
+         * @brief 选择模型说明
+         * @details
+         * 本视图不再在构造函数里创建 selectionModel。
+         * - 由 BaseTimelineWidget 统一创建共享 QItemSelectionModel，并同时注入到 TrackListView 与 TimelineView。
+         * - 这样可以保证“选择状态”只有一份，避免绑定链路复杂、状态不同步。
+         */
         setSelectionMode(QAbstractItemView::SingleSelection);
         setSelectionBehavior(QAbstractItemView::SelectItems);
         setMouseTracking(true);
@@ -41,14 +47,6 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
             performRedraw();
         });
         // ========== 新增结束 ==========
-
-        // 优化：模型事件触发时，统一合并重绘，而不是每次都立即 onUpdateViewport
-        connect(Model, &BaseTimeLineModel::S_clipGeometryChanged, this, [this]() { scheduleRedraw(); });
-        connect(Model, &BaseTimeLineModel::S_trackAdd,            this, [this]() { scheduleRedraw(); });
-        connect(Model, &BaseTimeLineModel::S_trackDelete,         this, [this]() { scheduleRedraw(); });
-        connect(Model, &BaseTimeLineModel::S_trackMoved,          this, [this]() { scheduleRedraw(); });
-        connect(Model, &BaseTimeLineModel::S_addClip,             this, [this]() { scheduleRedraw(); });
-        connect(Model, &BaseTimeLineModel::S_playheadMoved,       this, [this]() { scheduleRedraw(); });
 
         // 从当前属性应用颜色，支持 QSS 的 qproperty- 语法
         applyStyleFromProperties();
@@ -72,8 +70,14 @@ void BaseTimelineView::initToolBar(BaseTimelineToolbar* new_toolbar)
 
 QRect BaseTimelineView::visualRect(const QModelIndex &index) const
 {
-
-    return itemRect(index).translated(-m_scrollOffset);
+    /**
+     * @brief 获取索引在 viewport 内的可视矩形
+     * @details
+     * 与 TrackListView 保持一致：以滚动条 value 为唯一真值来源计算偏移，
+     * 避免 m_scrollOffset 缓存状态与滚动条不同步导致命中测试/绘制错位。
+     */
+    const QPoint offset(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    return itemRect(index).translated(-offset);
 }
 
  QModelIndex BaseTimelineView::indexAt(const QPoint &point) const
@@ -87,7 +91,7 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
          *   仅用于contains判断，不影响绘制或布局的真实宽度。
          */
         //检查位置是否在工具栏区域
-        if (point.y() < rulerHeight+toolbarHeight) {
+        if (point.y() < contentTop()) {
             return QModelIndex(); // Return an invalid index if the point is in the ruler area
         }
 
@@ -137,7 +141,7 @@ QRect BaseTimelineView::itemRect(const QModelIndex &index) const
         // 如果轨道索引
     {
         // 返回轨道矩形
-        return QRect(0, (index.row() * trackHeight) + rulerHeight+toolbarHeight, trackwidth, trackHeight);
+        return QRect(0, (index.row() * trackHeight) + contentTop(), trackwidth, trackHeight);
     }
      // 如果剪辑索引
     else{
@@ -153,7 +157,7 @@ QRect BaseTimelineView::itemRect(const QModelIndex &index) const
             // 获取剪辑开始点x
             int clipStartX = frameToPoint(startFrame);
             // 获取剪辑开始点y
-            int clipStartY = (trackRow*trackHeight + rulerHeight+toolbarHeight);
+            int clipStartY = (trackRow*trackHeight + contentTop());
             // 获取剪辑宽度
             int clipWidth = frameToPoint(endFrame - startFrame);
             // 获取剪辑所在轨道行开始点
@@ -228,9 +232,42 @@ void BaseTimelineView::performRedraw() {
     m_isRedrawing = false;
 }
 
+void BaseTimelineView::syncScrollOffsetFromScrollBars()
+{
+    /**
+     * @brief 从滚动条同步 m_scrollOffset
+     * @details
+     * 滚动条（horizontalScrollBar/verticalScrollBar）是 QAbstractItemView 的内建滚动状态。
+     * 当前项目历史代码同时维护了 m_scrollOffset，因此必须在滚动发生后同步缓存，保证绘制/命中测试一致。
+     */
+    m_scrollOffset = QPoint(horizontalScrollBar()->value(), verticalScrollBar()->value());
+}
+
+void BaseTimelineView::setScrollOffsetClamped(const QPoint& offset)
+{
+    /**
+     * @brief 设置滚动偏移并同步滚动条（自动夹紧）
+     * @details
+     * 禁止直接修改 m_scrollOffset；正确做法是设置滚动条 value，让 QAbstractItemView 走标准滚动路径。
+     * 这里做夹紧，避免出现负值或超过 maximum 的情况。
+     */
+    const int x = qBound(horizontalScrollBar()->minimum(), offset.x(), horizontalScrollBar()->maximum());
+    const int y = qBound(verticalScrollBar()->minimum(),   offset.y(), verticalScrollBar()->maximum());
+
+    horizontalScrollBar()->setValue(x);
+    verticalScrollBar()->setValue(y);
+
+    syncScrollOffsetFromScrollBars();
+}
+
 void BaseTimelineView::onScroll(int dx, int dy){
-    m_scrollOffset -= QPoint(dx, dy);
-    QAbstractItemView::scrollContentsBy(dx, dy);
+    /**
+     * @brief 外部滚动同步入口（兼容旧接口）
+     * @details
+     * 旧实现直接调用 QAbstractItemView::scrollContentsBy 并手动维护 m_scrollOffset，容易导致状态错乱。
+     * 新实现以滚动条为真值来源：将 dx/dy 转换为目标 offset，再通过 setScrollOffsetClamped 同步。
+     */
+    setScrollOffsetClamped(m_scrollOffset - QPoint(dx, dy));
     scheduleRedraw();
 }
 void BaseTimelineView::horizontalScroll(double position)
@@ -248,18 +285,39 @@ void BaseTimelineView::horizontalScroll(double position)
 // 更新滚动条
 void BaseTimelineView::updateScrollBars()
 {
+    /**
+     * @brief 更新滚动条范围（与 TrackListView 使用相同几何口径）
+     * @details
+     * 以滚动条为唯一真值来源：
+     * - 垂直内容总高度 = contentTop(标尺+工具栏) + trackCount * trackHeight
+     * - 两个视图必须使用同一公式，否则会出现滚动不同步、行对不齐
+     */
     if (!model())
         return;
-    int max = 0;
-    max = getTrackWdith() -  viewport()->width();
-    horizontalScrollBar()->setRange(0, max);
-    verticalScrollBar()->setRange(0, model()->rowCount() * trackHeight + rulerHeight - viewport()->height());
+
+    const int maxX = qMax(0, getTrackWdith() - viewport()->width());
+    horizontalScrollBar()->setRange(0, maxX);
+
+    const int contentTop = rulerHeight + toolbarHeight;
+    const int totalHeight = model()->rowCount() * trackHeight + contentTop;
+    const int maxY = qMax(0, totalHeight - viewport()->height());
+    verticalScrollBar()->setRange(0, maxY);
+
+    // range 变化可能导致 value 被 Qt 自动夹紧，这里同步一次缓存
+    syncScrollOffsetFromScrollBars();
 }
 
 void BaseTimelineView::scrollContentsBy(int dx, int dy)
 {
-    m_scrollOffset -= QPoint(dx, dy);
+    /**
+     * @brief QAbstractItemView 内部滚动回调
+     * @details
+     * 该函数会在滚动条 valueChanged 时被调用。
+     * - 不要在这里再手动累加/累减 m_scrollOffset，否则会与滚动条重复计算。
+     * - 正确做法：先交给基类处理，再从滚动条同步一次缓存。
+     */
     QAbstractItemView::scrollContentsBy(dx, dy);
+    syncScrollOffsetFromScrollBars();
     scheduleRedraw();
 }
 
@@ -430,11 +488,9 @@ void BaseTimelineView::setScale(double value)
     int diff = newPointFocus - oldPointFocus;
 
     // 5. 调整滚动偏移以保持焦点位置
-    if (m_scrollOffset.x() + diff >= 0) {
-        scrollContentsBy(-diff, 0);
-    } else {
-        m_scrollOffset.setX(0);
-    }
+    //    关键点：不要直接调用 scrollContentsBy 或直接改 m_scrollOffset。
+    //    统一通过 setScrollOffsetClamped 来驱动滚动条，保证“滚动条值”和“缓存值”一致。
+    setScrollOffsetClamped(QPoint(m_scrollOffset.x() + diff, m_scrollOffset.y()));
 
     // 6. 更新界面
     currentScale = ratio;
@@ -453,6 +509,31 @@ void BaseTimelineView::resizeEvent(QResizeEvent *event)
 
 void BaseTimelineView::showEvent(QShowEvent *event)
 {
+    /**
+     * @brief 显示事件
+     * @details
+     * 兜底逻辑：
+     * - 如果外部没有注入共享 selectionModel，则创建一个本地 selectionModel。
+     * - 如果本视图未被 Controller 托管（独立使用），则在此处按需绑定“模型变化 -> 合并重绘”。
+     */
+    if (!selectionModel() && model()) {
+        setSelectionModel(new QItemSelectionModel(model(), this));
+    }
+
+    // 独立使用场景：没有 Controller 时，视图需要自己监听模型变化来刷新
+    if (!property("qtimeline_managed").toBool() && !property("qtimeline_model_bound").toBool() && Model) {
+        connect(Model, &QAbstractItemModel::modelReset,   this, [this]() { scheduleRedraw(); });
+        connect(Model, &QAbstractItemModel::rowsInserted, this, [this]() { scheduleRedraw(); });
+        connect(Model, &QAbstractItemModel::rowsRemoved,  this, [this]() { scheduleRedraw(); });
+        connect(Model, &QAbstractItemModel::rowsMoved,    this, [this]() { scheduleRedraw(); });
+        connect(Model, &QAbstractItemModel::dataChanged,  this, [this]() { scheduleRedraw(); });
+
+        connect(Model, &BaseTimeLineModel::S_playheadMoved,       this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_LengthChanged,       this, [this]() { scheduleRedraw(); });
+
+        setProperty("qtimeline_model_bound", true);
+    }
+
     updateScrollBars();
     QAbstractItemView::showEvent(event);
 }
@@ -468,8 +549,10 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
     m_mouseEnd = event->pos();
     mouseHeld = true;
 
-    // 清除当前选择
-    selectionModel()->clearSelection();
+    // 清除当前选择（selectionModel 可能由外部注入；兜底情况也可能尚未创建）
+    if (selectionModel()) {
+        selectionModel()->clearSelection();
+    }
     // // 获取播放头位置
     // int playheadPos = frameToPoint(((BaseTimeLineModel*)model())->getPlayheadPos());
     // // 获取播放头矩形
@@ -506,6 +589,8 @@ void BaseTimelineView::mousePressEvent(QMouseEvent *event)
         // 点击在空白处，不在轨道、片段、播放头上
         m_isPanning = true;
         m_panStart = event->pos();
+        // 开始平移前同步一次滚动偏移缓存，避免历史状态不一致
+        syncScrollOffsetFromScrollBars();
         m_panInitialOffset = m_scrollOffset;
         setCursor(Qt::ClosedHandCursor);
         event->accept();
@@ -561,14 +646,14 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
         // 仅水平平移
         QPoint newOffset = m_panInitialOffset - QPoint(dx, 0);
 
-        // 约束滚动范围
+        // 约束滚动范围：水平范围由滚动条/视口宽度决定
         const int minX = 0;
         const int maxX = qMax(minX, getTrackWdith() - viewport()->width());
         newOffset.setX(qBound(minX, newOffset.x(), maxX));
 
+        // 通过滚动条驱动平移，避免直接写 m_scrollOffset 导致状态不同步
         if (newOffset != m_scrollOffset) {
-            m_scrollOffset = newOffset;
-            // m_panMoved = m_panMoved || (qAbs(dx) >= 1 || qAbs(dy) >= 1);
+            setScrollOffsetClamped(newOffset);
             scheduleRedraw();
         }
         event->accept();
@@ -807,6 +892,14 @@ void BaseTimelineView::dropEvent(QDropEvent *event)
 
 void BaseTimelineView::paintEvent(QPaintEvent *event)
 {
+    /**
+     * @brief 视图绘制入口
+     * @details
+     * - 每次绘制前同步一次滚动偏移缓存，避免在未触发 scrollContentsBy 的场景下出现旧缓存。
+     * - visualRect 命中测试已改为直接读取滚动条 value，但其它绘制路径仍使用 m_scrollOffset。
+     */
+    syncScrollOffsetFromScrollBars();
+
     QPainter painter(viewport());
     painter.save();
 
@@ -836,14 +929,14 @@ void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
     // 设置分割线颜色并绘制轨道分隔线
     painter->setPen(m_timelineSeparatorColor);
     for (int i = 0; i < model()->rowCount(); ++i) {
-        int trackSplitter = (i+1) * trackHeight + rulerHeight + toolbarHeight - m_scrollOffset.y();
+        int trackSplitter = (i+1) * trackHeight + contentTop() - m_scrollOffset.y();
         painter->drawLine(0, trackSplitter, rect.width(), trackSplitter);
     }
 }
 
 void BaseTimelineView::drawVerticalTimeLines(QPainter* painter, const QRect& rect)
 {
-    int lineheight = model()->rowCount() * trackHeight + rulerHeight + toolbarHeight;
+    int lineheight = model()->rowCount() * trackHeight + contentTop();
 
     // 计算时间线间隔
     double frameRate = timecode_frames_per_sec(Model->getTimeCodeType());
@@ -908,7 +1001,7 @@ void BaseTimelineView::drawTimeRuler(QPainter* painter, const QRect& rect)
     painter->setBrush(QBrush(m_timelineBgColor));
     painter->drawRect(-m_scrollOffset.x(), 0,
                      rect.width() + m_scrollOffset.x(),
-                     rulerHeight + toolbarHeight);
+                     contentTop());
 
     // 计算时间线间隔（帧步长）
     const double frameRate = timecode_frames_per_sec(Model->getTimeCodeType());
@@ -948,9 +1041,9 @@ void BaseTimelineView::drawTimeMarkers(QPainter* painter, int startMarker, int e
 
         // 画刻度线
         painter->drawLine(x - m_scrollOffset.x(),
-                          rulerHeight + toolbarHeight - textoffset,
+                          contentTop() - textoffset,
                           x - m_scrollOffset.x(),
-                          rulerHeight + toolbarHeight);
+                          contentTop());
 
         if (canDrawText) {
            // 文本格式化为 mm:ss.ff（分钟:秒.帧）
@@ -971,7 +1064,7 @@ void BaseTimelineView::drawTimeMarkers(QPainter* painter, int startMarker, int e
 
             // 将文本居中到刻度线
             textRect.translate(-m_scrollOffset.x(), 0);
-            textRect.translate(x - textRect.width() / 2, rulerHeight + toolbarHeight - textoffset);
+            textRect.translate(x - textRect.width() / 2, contentTop() - textoffset);
 
             painter->drawText(textRect, text);
         }
@@ -994,14 +1087,14 @@ void BaseTimelineView::drawPlayhead(QPainter* painter)
     // 移动播放头到正确位置
     for (QPoint &p : kite) {
         p.setX(p.x() + playheadPos);
-        p.setY(p.y() + rulerHeight + toolbarHeight);
+        p.setY(p.y() + contentTop());
     }
 
     // 设置画笔和画刷颜色并绘制
     painter->setPen(m_timelinePlayheadColor);
     painter->setBrush(m_timelinePlayheadColor);
     painter->drawConvexPolygon(kite, 5);
-    painter->drawLine(QPoint(playheadPos, rulerHeight + toolbarHeight),
+    painter->drawLine(QPoint(playheadPos, contentTop()),
                      QPoint(playheadPos, viewport()->height()));
 }
 
@@ -1161,19 +1254,22 @@ void BaseTimelineView::wheelEvent(QWheelEvent *event){
 
         setScale(currentScale);
     } else {
-        // 水平滚动
-        QPoint numPixels = event->angleDelta();
-        int dx = -numPixels.y() / 2; // 减小滚动速度
+        /**
+         * @brief 非 Ctrl 情况下滚轮用于水平滚动
+         * @details
+         * 以滚动条为真值来源：通过设置 horizontalScrollBar()->setValue 驱动滚动，
+         * 避免只改 m_scrollOffset 造成“视觉滚动了但滚动条没动/命中测试不一致”。
+         */
+        const int deltaX = -event->angleDelta().y() / 2; // 减小滚动速度
 
-        int newX = m_scrollOffset.x() + dx;
-        int maxScroll = qMax(0, getTrackWdith() - viewport()->width());
-        newX = qBound(0, newX, maxScroll);
+        const int oldX = horizontalScrollBar()->value();
+        const int newX = qBound(horizontalScrollBar()->minimum(), oldX + deltaX, horizontalScrollBar()->maximum());
 
-        if (newX != m_scrollOffset.x()) {
-            m_scrollOffset.setX(newX);
-            updateEditorGeometries();
-            viewport()->update();
-            emit scrolled(dx, 0);
+        if (newX != oldX) {
+            horizontalScrollBar()->setValue(newX);
+            syncScrollOffsetFromScrollBars();
+            scheduleRedraw();
+            emit scrolled(newX - oldX, 0);
         }
     }
     event->accept();

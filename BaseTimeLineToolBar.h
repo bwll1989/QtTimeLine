@@ -83,7 +83,7 @@ public:
     }
 
 protected:
-    void startDrag(QAction* widget);
+    virtual void startDrag(QAction* widget);
 
     virtual bool eventFilter(QObject* watched, QEvent* event) override;
 private:

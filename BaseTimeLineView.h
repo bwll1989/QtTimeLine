@@ -436,8 +436,41 @@ protected:
      * @return QRect 矩形
      */
     QRect itemRect(const QModelIndex &index) const;
-    // 滚动偏移
+
+    /**
+     * @brief 内容区顶部偏移（统一几何口径）
+     * @details
+     * TrackListView 与 TimelineView 的坐标体系必须一致，否则会出现“同一行不对齐/滚动不同步”。
+     * 这里将内容区顶部定义为：标尺高度 + 工具栏高度。
+     */
+    int contentTop() const { return rulerHeight + toolbarHeight; }
+
+    /**
+     * @brief 当前滚动偏移（与滚动条保持一致）
+     * @details
+     * 历史代码在多个位置直接读写 m_scrollOffset，并与 QAbstractItemView 内部滚动条机制并存，
+     * 容易产生“滚动条值”和“m_scrollOffset 值”不一致，进而导致绘制/命中测试/拖拽计算错乱。
+     * 重构策略：滚动条为唯一真值来源，m_scrollOffset 仅作为缓存，必须通过同步函数更新。
+     */
     QPoint m_scrollOffset;
+
+    /**
+     * @brief 从滚动条同步 m_scrollOffset（滚动条为真值来源）
+     * @details
+     * - 当 scrollBar valueChanged 触发 QAbstractItemView::scrollContentsBy 后，应调用此函数更新缓存。
+     * - 所有使用 m_scrollOffset 参与绘制/计算的代码，都依赖此同步保证正确性。
+     */
+    void syncScrollOffsetFromScrollBars();
+
+    /**
+     * @brief 设置滚动偏移并同步滚动条（自动夹紧到合法范围）
+     * @param offset 目标偏移（x=水平，y=垂直）
+     * @details
+     * - 禁止直接写 m_scrollOffset（会导致滚动条不动、视图内部状态不一致）。
+     * - 统一通过此函数写入：先夹紧，再写滚动条，再同步缓存。
+     */
+    void setScrollOffsetClamped(const QPoint& offset);
+
     /**
      * 点转换为帧
      * @param int point 点

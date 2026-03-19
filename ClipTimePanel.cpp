@@ -32,11 +32,11 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
     auto lengthLabel = new QLabel(tr("片段位置:"), this);
     m_positionFrameSpinBox = new QSpinBox(this);
     m_positionFrameSpinBox->setRange(0, 9999999);
-    m_positionFrameLineEdit = new QTimeEdit(this);
-    m_positionFrameLineEdit->setDisplayFormat("hh:mm:ss:zzz");
+    m_positionTimeLineEdit = new QTimeEdit(this);
+    m_positionTimeLineEdit->setDisplayFormat("hh:mm:ss:zzz");
     m_timeLayout->addWidget(lengthLabel, 1, 0,1,1);
     m_timeLayout->addWidget(m_positionFrameSpinBox, 1 ,1,1,1);
-    m_timeLayout->addWidget(m_positionFrameLineEdit, 1, 2,1,1);
+    m_timeLayout->addWidget(m_positionTimeLineEdit, 1, 2,1,1);
 
     // 结束帧显示（绝对时间：毫秒）
     auto endLabel = new QLabel(tr("结束帧:"), this);
@@ -59,7 +59,7 @@ void ClipTimePanel::initSignalConnections() {
     connect(m_endFrameSpinBox,&QSpinBox::valueChanged,this,&ClipTimePanel::updateEndFrame);
     connect(m_endTimeCodeLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updateEndTimeCode);
     connect(m_positionFrameSpinBox,&QSpinBox::valueChanged,this,&ClipTimePanel::updatePositionFrame);
-    connect(m_positionFrameLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updatePositionTimeCode);
+    connect(m_positionTimeLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updatePositionTimeCode);
     connect(m_owner, &AbstractClipModel::timelinePositionChanged, this, [this](int frames){
         updateStartFrame(frames);
         updatePositionFrame(frames);
@@ -129,11 +129,11 @@ void ClipTimePanel::updatePositionFrame(int frames) {
     }
     int length=m_owner->length();
     QSignalBlocker b1(m_positionFrameSpinBox);
-    QSignalBlocker b2(m_positionFrameLineEdit);
+    QSignalBlocker b2(m_positionTimeLineEdit);
     m_positionFrameSpinBox->setValue(frames);
     auto tc = frames_to_timecode_frame(frames, m_owner->getTimeCodeType());
     QTime time=timecode_frame_to_qtime(tc, m_owner->getTimeCodeType());
-    m_positionFrameLineEdit->setTime(time);
+    m_positionTimeLineEdit->setTime(time);
     m_owner->setStart(frames);
     m_owner->setEnd(frames+length);
 }
@@ -144,7 +144,7 @@ void ClipTimePanel::updatePositionTimeCode(const QTime& tc) {
     }
     int length=m_owner->length();
     QSignalBlocker b1(m_positionFrameSpinBox);
-    QSignalBlocker b2(m_positionFrameLineEdit);
+    QSignalBlocker b2(m_positionTimeLineEdit);
     TimeCodeFrame timecode = qtime_to_timecode_frame(tc, m_owner->getTimeCodeType());
     int newEnd = static_cast<int>(timecode_frame_to_frames(timecode, m_owner->getTimeCodeType()));
     m_positionFrameSpinBox->setValue(newEnd);

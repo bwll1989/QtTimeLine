@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QShortcut>
 #include <QScreen>
+#include <QItemSelectionModel>
 #include "qtreeview.h"
 #include "BaseTimeLineModel.h"
 #include "BaseTimeLineView.h"
@@ -30,18 +31,30 @@ public:
     ~BaseTimelineWidget() override;
 
 public:
-    //主布局
+    // 主布局
     QVBoxLayout *mainlayout;
-    //分割器
+    // 分割器：左侧 TrackList，右侧 Timeline
     QSplitter* splitter ;
-    //模型
+    // 数据模型（轨道/片段/播放头等状态的唯一来源）
     BaseTimeLineModel* model;
-    //视图
+    // 时间线视图（绘制 clip）
     BaseTimelineView* view;
-    //轨道列表
+    // 轨道列表视图（绘制 track 行）
     BaseTracklistView* tracklist;
-    //工具栏
+    // 默认工具栏（控制播放/缩放等）
     DefaultTimeLineToolBar* toolbar;
+
+private:
+    /**
+     * @brief 两个视图共享的选择模型
+     * @details
+     * 以往 TrackListView / TimelineView 各自创建 selectionModel，会出现“两套选择状态”，
+     * 导致绑定链路复杂、状态不同步、逻辑越来越乱。
+     * 这里将选择状态收敛为唯一来源：m_sharedSelectionModel。
+     */
+    QItemSelectionModel* m_sharedSelectionModel {nullptr};
+
+    QObject* m_bindings {nullptr};
 Q_SIGNALS:
     //初始化信号
     void initialized();

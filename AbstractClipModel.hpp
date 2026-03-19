@@ -3,6 +3,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtCore/QJsonObject>
+#include <QAbstractItemModel>
 #include "TimeLineDefines.h"
 #include "TimeLineStyle.h"
 #include <QWidget>
@@ -64,6 +65,10 @@ public:
 ClipId id() const { return m_id; }
 
 virtual void setId(ClipId id) { m_id = id; }
+
+void setTimelineModel(QAbstractItemModel* model) { m_timelineModel = model; }
+QAbstractItemModel* timelineModel() const { return m_timelineModel; }
+
     // Getters
     /**
      * 开始
@@ -121,6 +126,8 @@ virtual void setStart(int start) {
             emit timelinePositionChanged(m_start);
             emit lengthChanged(m_end);
         }
+        stateFeedBack("/start_frame", start);
+        stateFeedBack("/position_frame",start);
 
     }
 }
@@ -142,10 +149,9 @@ virtual void setEnd(int end) {
             emit lengthChanged(m_end);
             emit timelinePositionChanged(m_start);
         }
-
+        stateFeedBack("/end_frame", end);
     }
 }
-
     /**
      * 设置是否可调整大小
      * @param bool resizable 是否可调整大小
@@ -271,6 +277,12 @@ virtual void initPropertyWidget(){
     // 1. 时间属性组（重构后：由 ClipTimePanel 管理）
     timeGroupBox = new ClipTimePanel(this,m_standardPropertyWidget);
     m_layout->addWidget(timeGroupBox);
+    registerExternalControl("/start_frame",timeGroupBox->m_startFrameSpinBox);
+    registerExternalControl("/end_frame",timeGroupBox->m_endFrameSpinBox);
+    registerExternalControl("/position_frame",timeGroupBox->m_positionFrameSpinBox);
+    registerExternalControl("/start_time_code",timeGroupBox->m_startTimeCodeLineEdit);
+    registerExternalControl("/end_time_code",timeGroupBox->m_endTimeCodeLineEdit);
+    registerExternalControl("/position_time_code",timeGroupBox->m_positionTimeLineEdit);
 
     // 添加代理编辑器的占位符
     if (!m_clipPropertyWidget) {
@@ -345,6 +357,10 @@ virtual std::unordered_map<QString, QWidget*> getExternalControlAddressMapping()
 {
     return _OscMapping;
 }
+
+virtual void stateFeedBack(const QString& oscAddress, QVariant value){
+    qDebug()<<"stateFeedBack"<<oscAddress<<value;
+}
 Q_SIGNALS:
     /**
      * 数据变化信号
@@ -378,8 +394,9 @@ protected:
     std::unordered_map<QString, QWidget*> _OscMapping;
     // 片段ID
     ClipId m_id;
-    //
-    QString m_modelAlias="default";
+
+    QAbstractItemModel* m_timelineModel {nullptr};
+
     // 拖拽起始位置
     QPoint dragStartPosition;
     // 是否正在拖拽
@@ -407,7 +424,10 @@ protected:
         if (oscAddress.isEmpty()) return;
     
         OSCMessage message;
-        message.address = "/timeline/" + m_modelAlias+"/"+QString::number(m_id) + oscAddress;
+        const QString modelAlias = m_timelineModel
+            ? m_timelineModel->data(QModelIndex(), TimelineRoles::TimelineModelAliasRole).toString()
+            : QStringLiteral("default");
+        message.address = modelAlias + "/" + QString::number(m_id) + oscAddress;
         message.host = "127.0.0.1";
         message.port = 8991;
         QClipboard* clipboard = QApplication::clipboard();

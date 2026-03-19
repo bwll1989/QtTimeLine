@@ -24,7 +24,7 @@ public:
     QTimeEdit*  m_startTimeCodeLineEdit {nullptr};
 
     QSpinBox*   m_positionFrameSpinBox {nullptr};
-    QTimeEdit*  m_positionFrameLineEdit {nullptr};
+    QTimeEdit*  m_positionTimeLineEdit {nullptr};
 
     QSpinBox*   m_endFrameSpinBox {nullptr};
     QTimeEdit*  m_endTimeCodeLineEdit {nullptr};

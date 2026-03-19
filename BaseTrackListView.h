@@ -9,6 +9,8 @@
 #include <QScrollBar>
 #include <QDrag>
 #include <QApplication>
+#include <QPersistentModelIndex>
+#include <QVector>
 #include "BaseTimeLineModel.h"
 #include "TimeLineStyle.h"
 #include <QTimer>
@@ -61,32 +63,18 @@ public:
     virtual BaseTimeLineModel * getModel();
 
 
-signals:
-    /**
-     * 滚动信号
-     * @param int dx 水平滚动   
-     * @param int dy 垂直滚动
-     */
-    void trackScrolled(int dx, int dy);
-    /**
-     * 视图更新信号
-     */
-    void viewUpdate();
-
 public slots:
     /**
-     * 滚动
-     * @param int dx 水平滚动
-     * @param int dy 垂直滚动
-     */
-    virtual void scroll(int dx, int dy);
-   
-    /**
-     * 更新视图
+     * @brief 更新视图
      */
     virtual void onUpdateViewport();
     
 protected:
+    /**
+     * @brief 确保可视范围内的轨道行存在 persistent editor
+     */
+    void ensureVisiblePersistentEditors();
+
     /**
      * 移动光标
      * @param CursorAction cursorAction 光标动作
@@ -217,14 +205,15 @@ public:
      */
     QAction* m_deleteTrackAction;
 protected:
-    //滚动偏移  
-    QPoint m_scrollOffset;
     //拖动开始位置
     QPoint m_dragStartPosition;
     //悬停索引
     QModelIndex m_hoverIndex = QModelIndex();
     //模型
     BaseTimeLineModel *Model;
+
+    // 当前已打开的 persistent editor（用于可视范围内按需开关，避免滚动时只增不减）
+    QVector<QPersistentModelIndex> m_openPersistentEditors;
 
 private:
    // Initialize colors from TimeLineStyle

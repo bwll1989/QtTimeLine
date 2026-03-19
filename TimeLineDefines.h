@@ -41,6 +41,7 @@ Q_NAMESPACE_EXPORT(NODE_TIMELINE_PUBLIC)
         TrackClipsRole, // 轨道剪辑列表
         TimelineLengthRole, // 时间轴长度
         TimeCodeTypeRole, //时间码格式
+        TimelineModelAliasRole, // 时间线模型别名（用于 OSC 地址前缀）
     };
     Q_ENUM_NS(TimelineRoles)
 

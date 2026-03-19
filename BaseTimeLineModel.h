@@ -143,6 +143,13 @@ public:
     void setTimeDisplayFormat(TimedisplayFormat val){
         m_timeDisplayFormat=val;
     }
+
+    QString getModelAlias() const { return m_modelAlias; }
+    // 设置模型别名
+    void setModelAlias(const QString& alias) {
+        m_modelAlias = alias.startsWith("/") ? alias : ("/" + alias);
+    }
+
     // 设置插件加载器
     void setPluginLoader(BasePluginLoader* loader) ;
 
@@ -156,22 +163,20 @@ public:
         m_timeCodeType=type;
     }
 signals:
-    //轨道移动信号
-    void S_trackMoved(int oldIndex, int newIndex);
-    //添加轨道信号
-    void S_trackAdd();
-    //删除轨道信号
-    void S_trackDelete();
-    //移动播放头信号
+    /**
+     * @brief 播放头位置变化信号
+     * @details
+     * 播放头不是 Model/View 树中的某一行数据，因此不适合用 dataChanged 表达。
+     * 保留此信号供 Timeline/TrackList 的标题区域轻量刷新使用。
+     */
     void S_playheadMoved(int frame);
-    //时间线长度变化信号
+
+    /**
+     * @brief 时间线总长度变化信号
+     * @details
+     * 总长度是聚合值（由所有 clip 的 end 取 max 计算），不对应某一行的直接字段。
+     */
     void S_LengthChanged(qint64 length);
-    //添加片段信号
-    void S_addClip();
-    //删除片段信号
-    void S_deleteClip();
-    //片段位置外形变化信号
-    void S_clipGeometryChanged();
 public slots:
     //开始播放槽函数
     virtual void onStartPlay();
@@ -195,6 +200,15 @@ public slots:
     virtual void onMoveTrack(int sourceRow, int targetRow);
 
 protected:
+    /**
+     * @brief 通过 clip 指针反查其在模型中的索引
+     * @details
+     * ClipTimePanel 会直接调用 AbstractClipModel::setStart/setEnd 等修改片段。
+     * 为了让 View 能走 Qt 标准路径刷新，这里提供从 clip 指针构建 QModelIndex 的能力，
+     * 以便在监听到 clip 的信号后发出 dataChanged。
+     */
+    QModelIndex indexForClip(AbstractClipModel* clip) const;
+
     // 查找片段所在轨道
     TrackData* findParentTrackOfClip(AbstractClipModel* clip) const ;
     // 查找轨道行
@@ -218,6 +232,8 @@ protected:
     qint64 m_lengthFrame = 0; // 总帧数
 
     ClipId m_clipNextId=0;
+
+    QString m_modelAlias = "default123";
 
     TimeCodeType m_timeCodeType=TimeCodeType::PAL;
 };

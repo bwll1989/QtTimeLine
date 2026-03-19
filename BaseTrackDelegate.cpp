@@ -10,32 +10,60 @@ QSize BaseTrackDelegate::sizeHint(const QStyleOptionViewItem &option, const QMod
 
 
 QWidget *BaseTrackDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const {
-    
+    /**
+     * @brief 创建轨道行持久编辑器
+     * @details
+     * 重新导入/轨道移动后“显示的 TrackName 错误”的常见原因是：
+     * - 旧代码在 textChanged 的 lambda 中捕获了 QModelIndex（临时索引）。
+     * - 当行被 move/reset 后，该 index 可能已指向错误的行或失效，导致写回/显示错乱。
+     *
+     * 解决方案：
+     * - 使用 QPersistentModelIndex 作为长期索引引用，能够在 beginMoveRows 等操作后自动跟随。
+     */
+
     QWidget* editor = new QWidget(parent);
-    
+
     QHBoxLayout* layout = new QHBoxLayout(editor);
     layout->setContentsMargins(0,0,0,0);
+
     QLineEdit* lineEdit = new QLineEdit();
     lineEdit->setText(index.data(TimelineRoles::TrackNameRole).toString());
     editor->setToolTip(index.data(TimelineRoles::TrackTypeRole).toString());
     lineEdit->setAlignment(Qt::AlignCenter);
-    // lineEdit->setStyleSheet("QLineEdit { background: rgba(255, 255, 255, 0); color: white; border: none; }");
-    connect(lineEdit, &QLineEdit::textChanged, this, [this, index](const QString& text){
-        // 使用model()获取模型,然后通过setData更新数据
-        const_cast<QAbstractItemModel*>(index.model())->setData(index, text, TimelineRoles::TrackNameRole);
+
+    const QPersistentModelIndex pIndex(index);
+    connect(lineEdit, &QLineEdit::textChanged, this, [pIndex](const QString& text){
+        /**
+         * @brief 轨道名编辑回写模型
+         * @details
+         * - 通过 QPersistentModelIndex 确保行移动/导入重载后仍写到正确轨道。
+         * - 若索引失效（例如 model reset），则忽略本次回写。
+         */
+        if (!pIndex.isValid()) {
+            return;
+        }
+        QAbstractItemModel* m = const_cast<QAbstractItemModel*>(pIndex.model());
+        if (!m) {
+            return;
+        }
+        if (m->data(pIndex, TimelineRoles::TrackNameRole).toString() == text) {
+            return;
+        }
+        m->setData(pIndex, text, TimelineRoles::TrackNameRole);
     });
+
     layout->addWidget(lineEdit);
+
     // 移动轨道按钮
     QLabel* moveLabel = new QLabel();
     moveLabel->setFixedSize(20,20);
     moveLabel->setPixmap(QPixmap(":/icons/icons/move.png").scaled(moveLabel->size(),Qt::KeepAspectRatio,Qt::SmoothTransformation));
     moveLabel->setAlignment(Qt::AlignCenter);
-    // moveLabel->setStyleSheet("QLabel { background: rgba(255, 255, 255, 0); color: white; border: none; }");
     layout->addWidget(moveLabel);
+
     editor->show();
     editor->setMouseTracking(true);
     return editor;
-    // return nullptr;
 };
 
 
@@ -55,11 +83,27 @@ void BaseTrackDelegate::updateEditorGeometry(QWidget *editor, const QStyleOption
 
 
 void BaseTrackDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const {
-    // QLabel *lineEdit = editor->findChild<QLabel*>();
-    // if (lineEdit) {
-    //     QString trackType = index.data(TimelineRoles::TrackTypeRole).toString();
-    //     lineEdit->setText(trackType);
-    // }
-    // // Remove or replace the following lie if not applicable
-    // QAbstractItemDelegate::setEditorData(editor, index); // Call the correct base class method if needed
+    /**
+     * @brief 将模型数据同步到编辑器
+     * @details
+     * TrackListView 使用 openPersistentEditor 创建持久编辑器。
+     * - 当模型在 load() 里 setData(TrackNameRole) 更新轨道名时，若 delegate 不实现 setEditorData，
+     *   编辑器会一直显示“创建时的旧文本”，导致导入后显示错误。
+     */
+    if (!editor) {
+        return;
+    }
+
+    QLineEdit* lineEdit = editor->findChild<QLineEdit*>();
+    if (!lineEdit) {
+        return;
+    }
+
+    const QString newText = index.data(TimelineRoles::TrackNameRole).toString();
+    if (lineEdit->text() == newText) {
+        return;
+    }
+
+    const QSignalBlocker blocker(lineEdit);
+    lineEdit->setText(newText);
 };
