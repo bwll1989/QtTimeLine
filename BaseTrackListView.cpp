@@ -34,6 +34,7 @@ BaseTracklistView::BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *pare
     m_deleteTrackAction->setShortcut(QKeySequence(Qt::Key_Delete));
     QObject::connect(m_deleteTrackAction, &QAction::triggered, this, &BaseTracklistView::onDeleteTrack);
     setItemDelegate(new BaseTrackDelegate(this));
+    setEditTriggers(QAbstractItemView::DoubleClicked);
     setMouseTracking(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded ) ;
     setVerticalScrollBarPolicy( Qt::ScrollBarAsNeeded) ;
@@ -155,23 +156,21 @@ void BaseTracklistView::mousePressEvent(QMouseEvent *event) {
  * @brief 获取某一点的轨道索引
  */
 QModelIndex BaseTracklistView::indexAt(const QPoint &point) const {
-    // Check if the point is above the ruler or in a blank area
-    QRect rulerRect(0, 0, viewport()->width(), rulerHeight+toolbarHeight);
-    if (point.y() < 0 || rulerRect.contains(point)) {
-        return QModelIndex(); // Return an invalid index
-    }
+    const int header = rulerHeight + toolbarHeight;
+    if (!model() || trackHeight <= 0 || point.y() < header)
+        return {};
 
-    // Iterate over the rows to find the index at the given point
-    for (int i = 0; i < model()->rowCount(); ++i) {
-        QModelIndex index = model()->index(i, 0);
-        if (visualRect(index).contains(point)) {
-            // qDebug() << "index"<<index.row()<<index.column()<<index.parent().row();
-            return index; // Return the valid index if found
-        }
-    }
+    const int contentY = point.y() + verticalScrollBar()->value() - header;
+    if (contentY < 0)
+        return {};
+    const int row = contentY / trackHeight;
+    if (row < 0 || row >= model()->rowCount())
+        return {};
 
-    // If no valid index is found, return an invalid QModelIndex
-    return QModelIndex();
+    const QModelIndex index = model()->index(row, 0);
+    if (visualRect(index).contains(point))
+        return index;
+    return {};
 }
 
 BaseTimeLineModel* BaseTracklistView::getModel()
@@ -257,6 +256,7 @@ void BaseTracklistView::leaveEvent(QEvent *event) {
  * @brief 大小改变事件
  */
 void BaseTracklistView::resizeEvent(QResizeEvent *event) {
+    onUpdateViewport();
     updateScrollBars();
     QAbstractItemView::resizeEvent(event);
 }
@@ -293,7 +293,7 @@ void BaseTracklistView::showEvent(QShowEvent *event) {
 
 
         connect(Model, &BaseTimeLineModel::S_playheadMoved, this, [this](int) {
-            viewport()->update();
+            updatePlayheadHeader();
         });
 
         setProperty("qtimeline_model_bound", true);
@@ -342,97 +342,25 @@ void BaseTracklistView::onUpdateViewport(){
 
 void BaseTracklistView::ensureVisiblePersistentEditors()
 {
-    /**
-     * @brief 确保可视范围内的轨道行存在 persistent editor
-     * @details
-     * 通过缓存 m_openPersistentEditors，避免每次更新遍历全部轨道。
-     */
-    if (!model() || !verticalScrollBar()) {
-        return;
-    }
-
-    const int count = model()->rowCount();
-    if (count <= 0) {
-        m_openPersistentEditors.clear();
-        return;
-    }
-
-    // 清理失效缓存
-    for (int i = m_openPersistentEditors.size() - 1; i >= 0; --i) {
-        if (!m_openPersistentEditors[i].isValid()) {
-            m_openPersistentEditors.remove(i);
-        }
-    }
-
-    const int y0 = verticalScrollBar()->value();
-    const int contentTop = rulerHeight + toolbarHeight;
-    const int visibleTop = qMax(0, y0 - contentTop);
-    const int visibleBottom = qMax(0, y0 + viewport()->height() - contentTop);
-
-    const int firstRow = qBound(0, visibleTop / trackHeight, count - 1);
-    const int lastRow  = qBound(0, visibleBottom / trackHeight, count - 1);
-
-    const int bufferRows = 1;
-    const int desiredFirst = qMax(0, firstRow - bufferRows);
-    const int desiredLast  = qMin(count - 1, lastRow + bufferRows);
-
-    QVector<QPersistentModelIndex> desired;
-    desired.reserve(desiredLast - desiredFirst + 1);
-    for (int row = desiredFirst; row <= desiredLast; ++row) {
-        desired.push_back(QPersistentModelIndex(model()->index(row, 0, QModelIndex())));
-    }
-
-    // 打开可视范围内缺失的 editor
-    for (const QPersistentModelIndex& p : desired) {
-        if (!p.isValid()) {
-            continue;
-        }
-
-        bool alreadyTracked = false;
-        for (const QPersistentModelIndex& opened : m_openPersistentEditors) {
-            if (opened == p) {
-                alreadyTracked = true;
-                break;
-            }
-        }
-        if (alreadyTracked) {
-            continue;
-        }
-
-        if (!indexWidget(p)) {
-            openPersistentEditor(p);
-        }
-        m_openPersistentEditors.push_back(p);
-    }
-
-    // 关闭离开可视范围的 editor
+    // 轨道名平时只画文字，不再为可见行打开常驻输入框。
+    // 这里只关掉以前留下的 persistent editor。
     for (int i = m_openPersistentEditors.size() - 1; i >= 0; --i) {
         const QPersistentModelIndex& p = m_openPersistentEditors[i];
-        if (!p.isValid()) {
-            m_openPersistentEditors.remove(i);
-            continue;
-        }
-
-        bool shouldKeep = false;
-        for (const QPersistentModelIndex& d : desired) {
-            if (d == p) {
-                shouldKeep = true;
-                break;
-            }
-        }
-
-        if (!shouldKeep) {
-            if (indexWidget(p)) {
-                closePersistentEditor(p);
-            }
-            m_openPersistentEditors.remove(i);
-        }
+        if (p.isValid() && indexWidget(p))
+            closePersistentEditor(p);
     }
+    m_openPersistentEditors.clear();
 }
 
 /**
  * @brief 更新滚动条
  */
+void BaseTracklistView::updatePlayheadHeader()
+{
+    const int header = rulerHeight + toolbarHeight;
+    viewport()->update(QRect(0, 0, viewport()->width(), header));
+}
+
 void BaseTracklistView::updateScrollBars(){
     if(!model())
         return;
@@ -549,7 +477,22 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         currentTrackRow = current.parent().isValid() ? current.parent().row() : current.row();
     }
 
-    for (int i = 0; i < model()->rowCount(); ++i){
+    const int header = rulerHeight + toolbarHeight;
+    const bool drawRows = event->rect().bottom() >= header;
+    if (drawRows) {
+    const int scrollY = verticalScrollBar()->value();
+    const int bottomContent = scrollY + viewport()->height() - header - 1;
+    const int count = model() ? model()->rowCount() : 0;
+    int firstRow = 0;
+    int lastRow = -1;
+    if (trackHeight > 0 && count > 0 && bottomContent >= 0) {
+        lastRow = qMin(count - 1, bottomContent / trackHeight);
+        firstRow = scrollY <= header ? 0 : qMin(count - 1, (scrollY - header) / trackHeight);
+        if (firstRow > lastRow)
+            lastRow = -1;
+    }
+
+    for (int i = firstRow; i <= lastRow; ++i){
         QModelIndex trackIndex = model()->index(i,0);
 
         const bool isCurrentTrack = (i == currentTrackRow);
@@ -563,10 +506,23 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
             painter.setBrush(QBrush(m_trackColor));
         }
 
-        painter.drawRect(visualRect(trackIndex));
+        const QRect rowRect = visualRect(trackIndex);
+        painter.drawRect(rowRect);
+
+        painter.save();
+        painter.setPen(Qt::white);
+        const QRect textRect = rowRect.adjusted(8, 0, -28, 0);
+        painter.drawText(textRect, Qt::AlignCenter,
+                         trackIndex.data(TimelineRoles::TrackNameRole).toString());
+        const QRect gripRect(rowRect.right() - 24, rowRect.center().y() - 10, 20, 20);
+        painter.drawPixmap(gripRect, QPixmap(":/icons/icons/move.png").scaled(
+                               gripRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        painter.restore();
+    }
     }
 
-    drawTitle(&painter);
+    if (event->rect().top() < header)
+        drawTitle(&painter);
 
     painter.restore();
 }

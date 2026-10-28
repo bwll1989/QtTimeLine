@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QAbstractItemView>
 #include <unordered_map>
@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPixmap>
 #include <QScrollBar>
 #include <QFileInfo>
 #include <QMimeData>
@@ -78,6 +79,10 @@ public slots:
      * 优化：改为调用 scheduleRedraw 合并重绘，避免每次信号都立即执行完整重绘。
      */
     virtual void onUpdateViewport();
+    // 播放头移动：缓存不失效，只刷新旧位置和新位置
+    virtual void onPlayheadMoved(int frame);
+    // 片段几何或外观变化：只重画该片段的旧位置和新位置
+    void updateClipGeometry(const QModelIndex& index);
     /**
      * 滚动视图
      * @param int dx 水平滚动
@@ -99,6 +104,7 @@ public slots:
      * @param int dy 垂直滚动
      */
     virtual void scrollContentsBy(int dx, int dy) override;
+    bool edit(const QModelIndex &index, EditTrigger trigger, QEvent *event) override;
     /**
      * 设置缩放
      * @param double value 缩放值
@@ -380,6 +386,8 @@ protected:
      * @param event 鼠标事件对象
      */
     virtual void handleMouseDrag(QMouseEvent *event);
+    void beginClipDrag(AbstractClipModel* clip, const QModelIndex& index);
+    void finishClipDrag();
 
     /**
      * 更新鼠标悬停状态
@@ -445,6 +453,9 @@ protected:
      */
     int contentTop() const { return rulerHeight + toolbarHeight; }
 
+    // 当前视口里能看见的轨道行，闭区间。没有可见行时 lastRow < firstRow。
+    void visibleTrackRange(int& firstRow, int& lastRow) const;
+
     /**
      * @brief 当前滚动偏移（与滚动条保持一致）
      * @details
@@ -491,6 +502,9 @@ protected:
     QPoint m_mouseOffset;
     // 鼠标是否按下
     bool mouseHeld = false;
+    bool m_interactiveDrag = false;
+    AbstractClipModel* m_dragClip = nullptr;
+    QPersistentModelIndex m_dragIndex;
     // 播放头是否选中
     bool m_playheadSelected = false;
     // 是否正在拖放媒体
@@ -513,15 +527,29 @@ protected:
     /**
      * 统一执行一次重绘（实际操作）
      * - 防重入：使用 m_isRedrawing，避免重入引发递归或重复开销
-     * - 执行 updateEditorGeometries、updateScrollBars、viewport()->update
+     * - 内容变化时更新滚动条并整页刷新。播放头移动不走这里。
      */
     void performRedraw();
+    void ensureStaticCache();
+    bool staticCacheReady() const;
+    // 滚动时平移已有缓存，只重画新露出来的条带。平移失败时返回 false，调用方整页重建。
+    bool shiftStaticCache(int dx, int dy);
+    void repaintStaticCache(const QRegion& region);
+    QRect clipContentBounds(AbstractClipModel* clip, int trackRow) const;
+    QRect playheadDirtyRect(int frame) const;
 
     // 合并重绘用的定时器（单次触发）
     QTimer* m_redrawCoalesceTimer {nullptr};
 
     // 防重入标志：防止 performRedraw 期间再次触发 performRedraw
     bool m_isRedrawing {false};
+
+    // 不含播放头的视口缓存。播放头移动时贴上这张图，再画播放头。
+    QPixmap m_staticCache;
+    bool m_staticCacheDirty = true;
+    int m_paintedPlayheadFrame = -1;
+    // 片段在内容坐标中的上次绘制范围，供局部刷新擦掉旧位置。
+    std::unordered_map<AbstractClipModel*, QRect> m_clipContentRects;
     // ========== 新增结束 ==========
     /**
      * 画布平移状态

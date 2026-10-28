@@ -31,6 +31,7 @@
 #include <QCheckBox>
 #include "OSCMessage.h"
 #include "ClipTimePanel.hpp"
+#include "ClipAppearancePanel.hpp"
 using namespace QtTimeline;
 class NODE_TIMELINE_PUBLIC AbstractClipModel : public QObject {
     Q_OBJECT
@@ -85,6 +86,10 @@ int end() const { return m_end; }
      * @return QString 类型
      */
 QString type() const { return m_type; }
+QString noteName() const { return m_noteName; }
+QString displayText() const { return m_noteName.isEmpty() ? m_type : m_noteName; }
+QColor color() const { return m_color.isValid() ? m_color : ClipColor; }
+bool hasCustomColor() const { return m_color.isValid(); }
     /**
      * 长度
      * @return int 长度
@@ -171,6 +176,20 @@ void setEmbedWidget(bool embedWidget) {
      * @param bool showBorder 显示边框
     */
 void setShowBorder(bool showBorder) { SHOWBORDER = showBorder; }
+
+void setNoteName(const QString& name) {
+    if (m_noteName == name)
+        return;
+    m_noteName = name;
+    emit appearanceChanged();
+}
+
+void setColor(const QColor& color) {
+    if (!color.isValid() || m_color == color)
+        return;
+    m_color = color;
+    emit appearanceChanged();
+}
     /**
      * 保存
      * @return QJsonObject 数据
@@ -186,6 +205,9 @@ virtual QJsonObject save() const {
     clipJson["end"] = m_end;
     clipJson["type"] = m_type;
     clipJson["Id"]=static_cast<qint64>(m_id);
+    clipJson["note"] = m_noteName;
+    if (m_color.isValid())
+        clipJson["color"] = m_color.name(QColor::HexRgb);
     return clipJson;
 }
     /**
@@ -202,10 +224,17 @@ virtual QJsonObject save() const {
         m_end   = json["end"].toInt();
         m_type  = json["type"].toString();
         m_id    = json["Id"].toInt();
+        m_noteName = json["note"].toString();
+        if (json.contains("color")) {
+            const QColor loaded(json["color"].toString());
+            if (loaded.isValid())
+                m_color = loaded;
+        }
 
         // 发出信号以刷新 UI 显示
         emit timelinePositionChanged(m_start);
         emit lengthChanged(m_end);
+        emit appearanceChanged();
     }
     /**
      * 获取数据
@@ -218,6 +247,10 @@ virtual QVariant data(int role) const {
             return QVariant::fromValue<AbstractClipModel*>(const_cast<AbstractClipModel*>(this));
         case TimelineRoles::TrackNameRole:
             return QVariant::fromValue<QString>(m_type);
+        case TimelineRoles::ClipNoteRole:
+            return m_noteName;
+        case TimelineRoles::ClipColorRole:
+            return color();
         default:
             return QVariant();
     }
@@ -277,6 +310,7 @@ virtual void initPropertyWidget(){
     // 1. 时间属性组（重构后：由 ClipTimePanel 管理）
     timeGroupBox = new ClipTimePanel(this,m_standardPropertyWidget);
     m_layout->addWidget(timeGroupBox);
+    m_layout->addWidget(new ClipAppearancePanel(this, m_standardPropertyWidget));
     registerExternalControl("/start_frame",timeGroupBox->m_startFrameSpinBox);
     registerExternalControl("/end_frame",timeGroupBox->m_endFrameSpinBox);
     registerExternalControl("/position_frame",timeGroupBox->m_positionFrameSpinBox);
@@ -359,7 +393,8 @@ virtual std::unordered_map<QString, QWidget*> getExternalControlAddressMapping()
 }
 
 virtual void stateFeedBack(const QString& oscAddress, QVariant value){
-    qDebug()<<"stateFeedBack"<<oscAddress<<value;
+    Q_UNUSED(oscAddress);
+    Q_UNUSED(value);
 }
 Q_SIGNALS:
     /**
@@ -374,6 +409,7 @@ Q_SIGNALS:
     void videoDataUpdate() const; //视频数据更新
     void audioDataUpdate() const; //音频数据更新
     void controlDataUpdate() const; //控制数据更新
+    void appearanceChanged(); //颜色或备注名变化
 
 protected:
     // 开始
@@ -394,6 +430,8 @@ protected:
     std::unordered_map<QString, QWidget*> _OscMapping;
     // 片段ID
     ClipId m_id;
+    QString m_noteName;
+    QColor m_color;
 
     QAbstractItemModel* m_timelineModel {nullptr};
 
@@ -441,6 +479,9 @@ protected:
             message.type = "Int";
         } else if (auto* spinBox = qobject_cast<QSpinBox*>(widget)) {
             message.value = spinBox->value();
+            message.type = "Int";
+        } else if (auto* dragInt = qobject_cast<IntDragValueWidget*>(widget)) {
+            message.value = dragInt->value();
             message.type = "Int";
         } else if (auto* lineEdit = qobject_cast<QLineEdit*>(widget)) {
             message.value = lineEdit->text();
@@ -541,7 +582,8 @@ virtual void drawBackground(QPainter* painter, const QRect& rect, bool selected)
 
     painter->save();
     // 设置背景颜色
-    QColor bgColor = selected ?  ClipColor.darker(150):ClipColor;
+    const QColor fill = color();
+    QColor bgColor = selected ? fill.darker(150) : fill;
 
     painter->setBrush(bgColor);
     if(SHOWBORDER){
@@ -549,8 +591,10 @@ virtual void drawBackground(QPainter* painter, const QRect& rect, bool selected)
     }else{
         painter->setPen(QPen(bgColor, 0));
     }
-    // 绘制圆角矩形
-    painter->drawRoundedRect(rect, clipround, clipround);
+    if (clipround <= 0)
+        painter->drawRect(rect);
+    else
+        painter->drawRoundedRect(rect, clipround, clipround);
 
     painter->restore();
 
@@ -566,15 +610,15 @@ virtual void drawTitle(QPainter* painter, const QRect& rect) const {
 
     painter->save();
     // 设置文字颜色和字体
-    painter->setPen(Qt::white);
+    const QColor fill = color();
+    painter->setPen(fill.lightness() > 160 ? QColor(30, 30, 30) : Qt::white);
 
     QFont font = painter->font();
 
     font.setPointSize(8);
 
     painter->setFont(font);
-    // 绘制类型和标题
-    QString text = type();
+    const QString text = painter->fontMetrics().elidedText(displayText(), Qt::ElideRight, qMax(0, rect.width() - 8));
     painter->drawText(rect, Qt::AlignCenter, text);
     painter->restore();
 

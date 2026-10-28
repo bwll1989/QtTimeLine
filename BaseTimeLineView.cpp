@@ -3,7 +3,50 @@
 #include <QAction>
 #include <QtMath>
 #include <QTimer>
+#include <algorithm>
 #include "DefaultTimeLineToolBar.h"
+
+namespace {
+void clipRowsInFrameRange(const TrackData* track, int frameLo, int frameHi, QList<int>& rows)
+{
+    rows.clear();
+    if (!track)
+        return;
+
+    const int clipCount = track->clips.size();
+    if (clipCount <= 0)
+        return;
+
+    auto overlaps = [&](int row) {
+        AbstractClipModel* clip = track->clips[row];
+        return clip && clip->end() >= frameLo && clip->start() <= frameHi;
+    };
+
+    if (track->clipsByStart.size() != clipCount) {
+        for (int row = 0; row < clipCount; ++row) {
+            if (overlaps(row))
+                rows.push_back(row);
+        }
+        return;
+    }
+
+    const int minStart = frameLo - qMax(0, track->maxClipSpan);
+    const QList<int>& order = track->clipsByStart;
+    const auto first = std::lower_bound(order.begin(), order.end(), minStart, [track](int row, int value) {
+        const AbstractClipModel* clip = track->clips[row];
+        return (clip ? clip->start() : 0) < value;
+    });
+    const auto last = std::upper_bound(order.begin(), order.end(), frameHi, [track](int value, int row) {
+        const AbstractClipModel* clip = track->clips[row];
+        return value < (clip ? clip->start() : 0);
+    });
+    for (auto it = first; it != last; ++it) {
+        if (overlaps(*it))
+            rows.push_back(*it);
+    }
+    std::sort(rows.begin(), rows.end());
+}
+}
 BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent)
         : Model(viewModel), QAbstractItemView{parent}
     {
@@ -54,6 +97,7 @@ BaseTimelineView::BaseTimelineView(BaseTimeLineModel *viewModel, QWidget *parent
 
 BaseTimelineView::~BaseTimelineView()
 {
+    finishClipDrag();
     delete m_toolbar;
     // delete timer;
 
@@ -90,44 +134,41 @@ QRect BaseTimelineView::visualRect(const QModelIndex &index) const
          *   如果 clipRect.width() < minHitWidth，则围绕其中心点临时扩展命中矩形到 minHitWidth，
          *   仅用于contains判断，不影响绘制或布局的真实宽度。
          */
-        //检查位置是否在工具栏区域
-        if (point.y() < contentTop()) {
-            return QModelIndex(); // Return an invalid index if the point is in the ruler area
-        }
+        if (point.y() < contentTop() || trackHeight <= 0 || !model())
+            return {};
 
-        //遍历每个轨道，匹配
-        for (int i = 0; i < model()->rowCount(); ++i) {
-            QModelIndex trackIndex = model()->index(i, 0);
-            QRect trackRect = visualRect(trackIndex);
+        const int contentY = point.y() + verticalScrollBar()->value() - contentTop();
+        if (contentY < 0)
+            return {};
+        const int row = contentY / trackHeight;
+        if (row < 0 || row >= model()->rowCount())
+            return {};
 
-            //检查位置是否在轨道矩形内
-            if (trackRect.contains(point)) {
-                //遍历每个剪辑，匹配位置是否在剪辑矩形内
-                for (int j = 0; j < model()->rowCount(trackIndex); ++j) {
-                    QModelIndex clipIndex = model()->index(j, 0, trackIndex);
-                    QRect clipRect = visualRect(clipIndex);
+        const QModelIndex trackIndex = model()->index(row, 0);
+        const QRect trackRect = visualRect(trackIndex);
+        if (!trackRect.contains(point))
+            return {};
 
-                    // 最小命中宽度保护：当片段过窄时，临时扩大命中区域以保证可点击
-                    const int minHitWidth = 15;
-                    if (clipRect.width() < minHitWidth) {
-                        int pad = (minHitWidth - clipRect.width()) ;
-                        clipRect.adjust(0, 0, pad, 0);
-                        // 约束在轨道矩形范围内，避免越界
-                        clipRect = clipRect.intersected(trackRect);
-                    }
+        auto* track = static_cast<TrackData*>(trackIndex.internalPointer());
+        const int minHitWidth = 15;
+        const int contentX = point.x() + horizontalScrollBar()->value();
+        const int frameLo = pointToFrame(qMax(0, contentX - minHitWidth)) - 1;
+        const int frameHi = pointToFrame(contentX) + 1;
+        QList<int> clipRows;
+        clipRowsInFrameRange(track, frameLo, frameHi, clipRows);
 
-                    //检查位置是否在剪辑矩形内
-                    if (clipRect.contains(point)) {
-                        //如果位置在剪辑矩形内，返回剪辑索引
-                        return clipIndex;
-                    }
-                }
-                //如果位置在轨道矩形内，但不在剪辑矩形内，返回轨道索引
-                return trackIndex;
+        for (int clipRow : clipRows) {
+            const QModelIndex clipIndex = model()->index(clipRow, 0, trackIndex);
+            QRect clipRect = visualRect(clipIndex);
+            if (clipRect.width() < minHitWidth) {
+                const int pad = minHitWidth - clipRect.width();
+                clipRect.adjust(0, 0, pad, 0);
+                clipRect = clipRect.intersected(trackRect);
             }
+            if (clipRect.contains(point))
+                return clipIndex;
         }
-        //如果位置不在任何轨道或剪辑矩形内，返回无效索引
-        return QModelIndex();
+        return trackIndex;
     }
 
 QRect BaseTimelineView::itemRect(const QModelIndex &index) const
@@ -195,16 +236,14 @@ void BaseTimelineView::moveSelectedClip(int dx, int dy, bool isMouse)
     // 确保不会移动到负值位置
     newPos = std::max(0, newPos);
     // 更新模型数据
+    // 非拖拽时 dataChanged 会局部刷新。拖拽期间模型先不发通知，由鼠标移动自己脏矩形。
     getModel()->setData(list.first(), newPos, TimelineRoles::ClipPosRole);
-    scheduleRedraw();
 }
 
 void BaseTimelineView::movePlayheadToFrame(int frame)
 {
-    //  qDebug() << "movePlayheadToFrame" << frame;
-    // 直接设置时间码生成器的帧位置
+    // 直接设置时间码生成器的帧位置。S_playheadMoved 会走局部刷新。
     getModel()->onSetPlayheadPos(frame);
-    scheduleRedraw();
 }
 
 void BaseTimelineView::onUpdateViewport(){
@@ -213,6 +252,7 @@ void BaseTimelineView::onUpdateViewport(){
 
 // 滚动视图
 void BaseTimelineView::scheduleRedraw(int delayMs) {
+    m_staticCacheDirty = true;
     if (!m_redrawCoalesceTimer) return;
     // 如果定时器已在等待中，无需重复启动；让多次请求自然合并
     if (!m_redrawCoalesceTimer->isActive()) {
@@ -224,12 +264,105 @@ void BaseTimelineView::performRedraw() {
     if (m_isRedrawing) return;
     m_isRedrawing = true;
 
-    // 统一重绘流程
-    updateEditorGeometries();
+    // 内容变化才更新滚动条范围。时间轴没有持久编辑器。
     updateScrollBars();
     viewport()->update();
 
     m_isRedrawing = false;
+}
+
+void BaseTimelineView::onPlayheadMoved(int frame)
+{
+    const int previous = m_paintedPlayheadFrame;
+    m_paintedPlayheadFrame = frame;
+    if (!staticCacheReady()) {
+        viewport()->update();
+        return;
+    }
+    if (previous >= 0 && previous != frame)
+        viewport()->update(playheadDirtyRect(previous));
+    viewport()->update(playheadDirtyRect(frame));
+}
+
+bool BaseTimelineView::staticCacheReady() const
+{
+    if (m_staticCacheDirty || m_staticCache.isNull() || !viewport())
+        return false;
+    const qreal dpr = viewport()->devicePixelRatio();
+    const QSize px(qRound(viewport()->width() * dpr), qRound(viewport()->height() * dpr));
+    return m_staticCache.size() == px;
+}
+
+QRect BaseTimelineView::playheadDirtyRect(int frame) const
+{
+    if (frame < 0 || !viewport())
+        return {};
+    const int x = frameToPoint(frame) - horizontalScrollBar()->value();
+    const int pad = playheadwidth + 2;
+    const int top = qMax(0, contentTop() - playheadheight);
+    return QRect(x - pad, top, pad * 2 + 1, viewport()->height() - top).intersected(viewport()->rect());
+}
+
+void BaseTimelineView::ensureStaticCache()
+{
+    QWidget* vp = viewport();
+    if (!vp || vp->width() <= 0 || vp->height() <= 0)
+        return;
+    if (staticCacheReady())
+        return;
+    if (m_interactiveDrag && Model)
+        Model->syncInteractiveClipOrder();
+
+    const qreal dpr = vp->devicePixelRatio();
+    m_staticCache = QPixmap(qRound(vp->width() * dpr), qRound(vp->height() * dpr));
+    m_staticCache.setDevicePixelRatio(dpr);
+    m_staticCache.fill(m_timelineBgColor);
+
+    QPainter cachePainter(&m_staticCache);
+    const QRect rect(0, 0, vp->width(), vp->height());
+    drawBackground(&cachePainter, rect);
+    drawVerticalTimeLines(&cachePainter, rect);
+    drawTracks(&cachePainter);
+    drawTimeRuler(&cachePainter, rect);
+    m_staticCacheDirty = false;
+}
+
+QRect BaseTimelineView::clipContentBounds(AbstractClipModel* clip, int trackRow) const
+{
+    if (!clip)
+        return {};
+    const int x = frameToPoint(clip->start());
+    const int width = qMax(1, frameToPoint(clip->end() - clip->start() + 1));
+    const int y = trackRow * trackHeight + contentTop();
+    // 右侧多留一截，盖住画在片段矩形外面的标题。
+    return QRect(x, y, width, trackHeight).adjusted(-4, -4, 44, 4);
+}
+
+void BaseTimelineView::updateClipGeometry(const QModelIndex& index)
+{
+    if (!index.isValid() || !index.parent().isValid() || !viewport())
+        return;
+    auto* clip = static_cast<AbstractClipModel*>(index.internalPointer());
+    if (!clip)
+        return;
+    if (!staticCacheReady()) {
+        scheduleRedraw();
+        return;
+    }
+
+    const QRect now = clipContentBounds(clip, index.parent().row());
+    const auto found = m_clipContentRects.find(clip);
+    const QRect old = found == m_clipContentRects.end() ? now : found->second;
+    m_clipContentRects[clip] = now;
+
+    const QPoint scroll(horizontalScrollBar()->value(), verticalScrollBar()->value());
+    QRegion dirty(old.translated(-scroll));
+    dirty += now.translated(-scroll);
+    dirty &= viewport()->rect();
+    if (dirty.isEmpty())
+        return;
+    repaintStaticCache(dirty);
+    viewport()->update(dirty.boundingRect());
 }
 
 void BaseTimelineView::syncScrollOffsetFromScrollBars()
@@ -267,8 +400,8 @@ void BaseTimelineView::onScroll(int dx, int dy){
      * 旧实现直接调用 QAbstractItemView::scrollContentsBy 并手动维护 m_scrollOffset，容易导致状态错乱。
      * 新实现以滚动条为真值来源：将 dx/dy 转换为目标 offset，再通过 setScrollOffsetClamped 同步。
      */
+    // 滚动条变化会进入 scrollContentsBy，在那里平移缓存。
     setScrollOffsetClamped(m_scrollOffset - QPoint(dx, dy));
-    scheduleRedraw();
 }
 void BaseTimelineView::horizontalScroll(double position)
 {
@@ -276,11 +409,8 @@ void BaseTimelineView::horizontalScroll(double position)
     int maxScroll = horizontalScrollBar()->maximum();
     int newScrollValue = static_cast<int>(maxScroll * position);
 
-    // 设置滚动条位置
+    // 滚动条变化会进入 scrollContentsBy，在那里平移缓存。
     horizontalScrollBar()->setValue(newScrollValue);
-
-    // 更新编辑器位置与视图（优化为合并重绘）
-    scheduleRedraw();
 }
 // 更新滚动条
 void BaseTimelineView::updateScrollBars()
@@ -307,18 +437,99 @@ void BaseTimelineView::updateScrollBars()
     syncScrollOffsetFromScrollBars();
 }
 
+bool BaseTimelineView::edit(const QModelIndex &index, EditTrigger trigger, QEvent *event)
+{
+    // 轨道名在左侧列表里双击编辑。时间轴上选中轨道时不要弹出输入框。
+    if (!index.parent().isValid())
+        return false;
+    return QAbstractItemView::edit(index, trigger, event);
+}
+
 void BaseTimelineView::scrollContentsBy(int dx, int dy)
 {
     /**
-     * @brief QAbstractItemView 内部滚动回调
+     * @brief 滚动条变化后的视口滚动
      * @details
-     * 该函数会在滚动条 valueChanged 时被调用。
-     * - 不要在这里再手动累加/累减 m_scrollOffset，否则会与滚动条重复计算。
-     * - 正确做法：先交给基类处理，再从滚动条同步一次缓存。
+     * dx/dy 是内容相对视口的位移：滚动条增大时为负，已有像素向左/上移动。
+     * 缓存能平移时只重画新露出的条带；缩放、改内容或跨度超过视口时整页重建。
      */
     QAbstractItemView::scrollContentsBy(dx, dy);
     syncScrollOffsetFromScrollBars();
-    scheduleRedraw();
+    if (dx == 0 && dy == 0)
+        return;
+    if (!shiftStaticCache(dx, dy))
+        m_staticCacheDirty = true;
+    if (viewport())
+        viewport()->update();
+}
+
+bool BaseTimelineView::shiftStaticCache(int dx, int dy)
+{
+    QWidget* vp = viewport();
+    if (!vp || !staticCacheReady())
+        return false;
+
+    const int w = vp->width();
+    const int h = vp->height();
+    if (w <= 0 || h <= 0)
+        return false;
+    // 一次跨过整个视口时，平移省不下绘制。
+    if (qAbs(dx) >= w || qAbs(dy) >= h)
+        return false;
+
+    const int header = qBound(0, contentTop(), h);
+    // 刻度横线画在 contentTop() 这一像素上。裁切高度若正好是 contentTop()，
+    // 这一行会落进轨道区域，上下滚动时被轨道背景盖住。
+    const int rulerBottom = qMin(h, header + 1);
+    const qreal dpr = m_staticCache.devicePixelRatio();
+    QPixmap shifted(m_staticCache.size());
+    shifted.setDevicePixelRatio(dpr);
+    shifted.fill(m_timelineBgColor);
+    {
+        QPainter blit(&shifted);
+        // 标尺固定在顶部，只跟横向滚动走。底边横线留在标尺里。
+        if (rulerBottom > 0) {
+            blit.setClipRect(0, 0, w, rulerBottom);
+            blit.drawPixmap(dx, 0, m_staticCache);
+        }
+        if (rulerBottom < h) {
+            blit.setClipRect(0, rulerBottom, w, h - rulerBottom);
+            blit.drawPixmap(dx, dy, m_staticCache);
+        }
+    }
+    m_staticCache = shifted;
+
+    // 多画 1 像素，盖住条带接缝上的刻度线。
+    QRegion exposed;
+    if (dx > 0)
+        exposed += QRect(0, 0, qMin(w, dx + 1), h);
+    else if (dx < 0)
+        exposed += QRect(qMax(0, w + dx - 1), 0, qMin(w, -dx + 1), h);
+    if (dy != 0 && rulerBottom < h) {
+        const int contentH = h - rulerBottom;
+        const int band = qMin(contentH, qAbs(dy) + 1);
+        if (dy > 0)
+            exposed += QRect(0, rulerBottom, w, band);
+        else
+            exposed += QRect(0, h - band, w, band);
+        // 轨道条带的重绘会铺背景。标尺整段再画一次，底边横线才不会被盖住。
+        exposed += QRect(0, 0, w, rulerBottom);
+    }
+    repaintStaticCache(exposed);
+    return true;
+}
+
+void BaseTimelineView::repaintStaticCache(const QRegion& region)
+{
+    if (region.isEmpty() || m_staticCache.isNull() || !viewport())
+        return;
+    QPainter painter(&m_staticCache);
+    painter.setClipRegion(region);
+    const QRect rect(0, 0, viewport()->width(), viewport()->height());
+    drawBackground(&painter, rect);
+    drawVerticalTimeLines(&painter, rect);
+    drawTracks(&painter);
+    drawTimeRuler(&painter, rect);
 }
 
 int BaseTimelineView::pointToFrame(int point) const
@@ -353,8 +564,8 @@ void BaseTimelineView::contextMenuEvent(QContextMenuEvent* event) {
         const int maxScroll = horizontalScrollBar()->maximum();
         int targetScroll = playheadX - viewWidth / 2;
         targetScroll = qBound(0, targetScroll, maxScroll);
+        // 滚动条变化会进入 scrollContentsBy，在那里平移缓存。
         horizontalScrollBar()->setValue(targetScroll);
-        scheduleRedraw();
     });
     contextMenu.addAction(focusCursorAction);
 
@@ -432,6 +643,8 @@ void BaseTimelineView::mouseReleaseEvent(QMouseEvent *event)
         return;
     }
 
+    finishClipDrag();
+
     // 结束画布平移模式
     
 
@@ -457,6 +670,7 @@ void BaseTimelineView::mouseDoubleClickEvent(QMouseEvent *event)
 
 void BaseTimelineView::leaveEvent(QEvent *event)
 {
+    finishClipDrag();
     mouseHeld = false;
     // selectionModel()->clear();
     m_hoverIndex = QModelIndex();
@@ -487,9 +701,8 @@ void BaseTimelineView::setScale(double value)
     int newPointFocus = qRound(static_cast<double>(focusFrame) * m_timescale);
     int diff = newPointFocus - oldPointFocus;
 
-    // 5. 调整滚动偏移以保持焦点位置
-    //    关键点：不要直接调用 scrollContentsBy 或直接改 m_scrollOffset。
-    //    统一通过 setScrollOffsetClamped 来驱动滚动条，保证“滚动条值”和“缓存值”一致。
+    // 5. 刻度已经变了，旧缓存不能按像素平移。先标脏，滚动条夹紧时不要拿旧图去补条带。
+    m_staticCacheDirty = true;
     setScrollOffsetClamped(QPoint(m_scrollOffset.x() + diff, m_scrollOffset.y()));
 
     // 6. 更新界面
@@ -528,7 +741,7 @@ void BaseTimelineView::showEvent(QShowEvent *event)
         connect(Model, &QAbstractItemModel::rowsMoved,    this, [this]() { scheduleRedraw(); });
         connect(Model, &QAbstractItemModel::dataChanged,  this, [this]() { scheduleRedraw(); });
 
-        connect(Model, &BaseTimeLineModel::S_playheadMoved,       this, [this]() { scheduleRedraw(); });
+        connect(Model, &BaseTimeLineModel::S_playheadMoved, this, [this](int frame) { onPlayheadMoved(frame); });
         connect(Model, &BaseTimeLineModel::S_LengthChanged,       this, [this]() { scheduleRedraw(); });
 
         setProperty("qtimeline_model_bound", true);
@@ -636,7 +849,6 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
     // 处理播放头拖动
     if (m_playheadSelected) {
         movePlayheadToFrame(pointToFrame(std::max(0, m_mouseEnd.x() + m_scrollOffset.x())));
-        scheduleRedraw();
         return;
     }
     // 处理画布平移
@@ -653,48 +865,75 @@ void BaseTimelineView::handleMouseDrag(QMouseEvent *event)
 
         // 通过滚动条驱动平移，避免直接写 m_scrollOffset 导致状态不同步
         if (newOffset != m_scrollOffset) {
+            // 滚动条变化会进入 scrollContentsBy，在那里平移缓存。
             setScrollOffsetClamped(newOffset);
-            scheduleRedraw();
         }
         event->accept();
         return;
     }
-    // 检查是否有选中的片段
-    QModelIndexList selectedIndexes = selectionModel()->selectedIndexes();
+    if (!selectionModel())
+        return;
+    const QModelIndexList selectedIndexes = selectionModel()->selectedIndexes();
+    if (selectedIndexes.isEmpty())
+        return;
 
-    // 处理片段操作
-    QModelIndex clipIndex = selectedIndexes.first();
-    AbstractClipModel* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
-    
-    // 根据鼠标悬停状态执行不同操作
+    const QModelIndex clipIndex = selectedIndexes.first();
+    auto* clip = static_cast<AbstractClipModel*>(clipIndex.internalPointer());
+    if (!clip)
+        return;
+
+    const bool moving = m_mouseUnderClipEdge == hoverState::CENTER;
+    const bool resizing = m_mouseUnderClipEdge == hoverState::LEFT || m_mouseUnderClipEdge == hoverState::RIGHT;
+    if (!moving && !resizing)
+        return;
+
+    if (!m_interactiveDrag)
+        beginClipDrag(clip, clipIndex);
+
+    // Trigger 等固定长度片段会把标题画到几何矩形右侧外（向右约 40px）。
+    // 只刷新 visualRect 时，这段旧文字清不掉，拖动就会叠成一串。
+    const QRect oldRect = visualRect(clipIndex).adjusted(-4, -4, 44, 4);
     switch (m_mouseUnderClipEdge) {
         case hoverState::CENTER:
-            // 移动片段
-            moveSelectedClip(pointToFrame(m_mouseEnd.x() + m_mouseOffset.x()), 
+            moveSelectedClip(pointToFrame(m_mouseEnd.x() + m_mouseOffset.x()),
                              m_mouseEnd.y() + m_mouseOffset.y());
             break;
-            
         case hoverState::LEFT:
-            // 调整片段左边界
-            if (clip && clip->isResizable()) {
-                int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipInRole);
-            }
+            getModel()->setData(clipIndex, pointToFrame(m_mouseEnd.x() + m_scrollOffset.x()), TimelineRoles::ClipInRole);
             break;
-            
         case hoverState::RIGHT:
-            // 调整片段右边界
-            if (clip && clip->isResizable()) {
-                int newFrame = pointToFrame(m_mouseEnd.x() + m_scrollOffset.x());
-                getModel()->setData(clipIndex, newFrame, TimelineRoles::ClipOutRole);
-            }
+            getModel()->setData(clipIndex, pointToFrame(m_mouseEnd.x() + m_scrollOffset.x()), TimelineRoles::ClipOutRole);
             break;
-            
         default:
             break;
     }
-    
-    scheduleRedraw();
+    const QRect nextRect = visualRect(clipIndex).adjusted(-4, -4, 44, 4);
+    viewport()->update(oldRect.united(nextRect));
+}
+
+void BaseTimelineView::beginClipDrag(AbstractClipModel* clip, const QModelIndex& index)
+{
+    if (!clip || !index.isValid() || !Model || m_interactiveDrag)
+        return;
+    m_interactiveDrag = true;
+    m_dragClip = clip;
+    m_dragIndex = index;
+    Model->beginInteractiveGeometryChange(clip);
+    // 不在 QAbstractScrollArea 上 grabMouse。按下时鼠标已经由视口捕获，
+    // 再抢到外层视图会让松手事件到不了 mouseReleaseEvent，拖拽无法结束。
+    m_staticCacheDirty = true;
+}
+
+void BaseTimelineView::finishClipDrag()
+{
+    if (!m_interactiveDrag)
+        return;
+    m_interactiveDrag = false;
+    m_dragClip = nullptr;
+    m_dragIndex = QPersistentModelIndex();
+    // dataChanged 会按旧位置和新位置补进缓存，避免松手后再整页重建。
+    if (Model)
+        Model->endInteractiveGeometryChange();
 }
 
 /**
@@ -892,33 +1131,22 @@ void BaseTimelineView::dropEvent(QDropEvent *event)
 
 void BaseTimelineView::paintEvent(QPaintEvent *event)
 {
-    /**
-     * @brief 视图绘制入口
-     * @details
-     * - 每次绘制前同步一次滚动偏移缓存，避免在未触发 scrollContentsBy 的场景下出现旧缓存。
-     * - visualRect 命中测试已改为直接读取滚动条 value，但其它绘制路径仍使用 m_scrollOffset。
-     */
+    Q_UNUSED(event);
     syncScrollOffsetFromScrollBars();
+    ensureStaticCache();
 
     QPainter painter(viewport());
-    painter.save();
-
-    // 1. 绘制基本背景和轨道分隔线
-    drawBackground(&painter, event->rect());
-
-    // 2. 绘制垂直时间线
-    drawVerticalTimeLines(&painter, event->rect());
-
-    // 3. 绘制轨道内容(clips)
-    drawTracks(&painter);
-
-    // 4. 绘制时间标尺
-    drawTimeRuler(&painter, event->rect());
-
-    // 5. 绘制播放头
+    if (!m_staticCache.isNull())
+        painter.drawPixmap(QPoint(0, 0), m_staticCache);
+    if (m_interactiveDrag && m_dragClip && m_dragIndex.isValid()) {
+        const QRect clipRect = visualRect(m_dragIndex).adjusted(0, clipoffset, 0, -clipoffset);
+        const bool selected = selectionModel() && selectionModel()->isSelected(m_dragIndex);
+        m_dragClip->paint(&painter, clipRect, selected);
+    }
     drawPlayhead(&painter);
 
-    painter.restore();
+    if (Model)
+        m_paintedPlayheadFrame = static_cast<int>(Model->getPlayheadPos());
 }
 
 void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
@@ -928,8 +1156,15 @@ void BaseTimelineView::drawBackground(QPainter* painter, const QRect& rect)
 
     // 设置分割线颜色并绘制轨道分隔线
     painter->setPen(m_timelineSeparatorColor);
-    for (int i = 0; i < model()->rowCount(); ++i) {
-        int trackSplitter = (i+1) * trackHeight + contentTop() - m_scrollOffset.y();
+    int firstRow = 0;
+    int lastRow = -1;
+    visibleTrackRange(firstRow, lastRow);
+    if (lastRow < firstRow)
+        return;
+    for (int i = qMax(0, firstRow - 1); i <= lastRow; ++i) {
+        const int trackSplitter = (i + 1) * trackHeight + contentTop() - m_scrollOffset.y();
+        if (trackSplitter < contentTop() || trackSplitter > rect.bottom())
+            continue;
         painter->drawLine(0, trackSplitter, rect.width(), trackSplitter);
     }
 }
@@ -1184,36 +1419,88 @@ void BaseTimelineView::applyStyleFromProperties() {
     ClipColor           = m_clipFillColor;
     ClipBorderColour    = m_clipBorderColor;
     trackSelectedColour = m_trackSelectedColor;
+    m_staticCacheDirty = true;
+}
+
+void BaseTimelineView::visibleTrackRange(int& firstRow, int& lastRow) const
+{
+    firstRow = 0;
+    lastRow = -1;
+    if (!model() || trackHeight <= 0)
+        return;
+    const int count = model()->rowCount();
+    if (count <= 0)
+        return;
+
+    const int scrollY = verticalScrollBar()->value();
+    const int top = contentTop();
+    const int bottomContent = scrollY + viewport()->height() - top - 1;
+    if (bottomContent < 0)
+        return;
+
+    lastRow = qMin(count - 1, bottomContent / trackHeight);
+    firstRow = scrollY <= top ? 0 : qMin(count - 1, (scrollY - top) / trackHeight);
+    if (firstRow > lastRow)
+        lastRow = -1;
 }
 
 void BaseTimelineView::drawTracks(QPainter* painter)
 {
-    for (int i = 0; i < model()->rowCount(); ++i) {
-        QModelIndex trackIndex = model()->index(i, 0);
-       
-        for (int j = 0; j < model()->rowCount(trackIndex); ++j) {
+    if (!model() || !painter)
+        return;
 
-            QModelIndex clipIndex = model()->index(j, 0, trackIndex);
-           // 设置画笔和画刷
-           AbstractClipModel* clip = clipIndex.data(TimelineRoles::ClipModelRole).value<AbstractClipModel*>();
-           if (clip) {
-            // 计算片段的绘制区域
-            QRect clipRect = visualRect(clipIndex).adjusted(0, clipoffset, 0, -clipoffset);
-            // 判断是否选中
-            bool selected = selectionModel()->isSelected(clipIndex);
-            // 调用片段的绘制方法
-            clip->paint(painter, clipRect, selected);
-        }
+    int firstRow = 0;
+    int lastRow = -1;
+    visibleTrackRange(firstRow, lastRow);
+    if (lastRow < firstRow)
+        return;
 
-            // if (!indexWidget(clipIndex)&&clipIndex.data(TimelineRoles::ClipShowWidgetRole).toBool()) {
-                
-            //     openPersistentEditor(clipIndex);
-            // }
-            // else{
-            //     // closePersistentEditor(clipIndex);
-            //     itemDelegateForIndex(clipIndex)->paint(painter, option, clipIndex);
-            // }
-           
+    const int scrollX = horizontalScrollBar()->value();
+    const int scrollY = verticalScrollBar()->value();
+    const int viewRight = scrollX + viewport()->width();
+    const int padFrames = qMax(1, pointToFrame(4));
+    const int frameLo = pointToFrame(qMax(0, scrollX)) - padFrames;
+    const int frameHi = pointToFrame(viewRight) + padFrames;
+    const bool clipped = painter->hasClipping();
+    const QRect clipBounds = clipped ? painter->clipBoundingRect().toAlignedRect() : QRect();
+    const int top = contentTop();
+    const AbstractClipModel* selectedClip = nullptr;
+    if (selectionModel()) {
+        const QModelIndex current = selectionModel()->currentIndex();
+        if (current.parent().isValid())
+            selectedClip = static_cast<AbstractClipModel*>(current.internalPointer());
+    }
+    QList<int> clipRows;
+
+    for (int i = firstRow; i <= lastRow; ++i) {
+        const int trackTop = i * trackHeight + top - scrollY;
+        if (clipped && (trackTop + trackHeight <= clipBounds.top() || trackTop >= clipBounds.bottom()))
+            continue;
+
+        const QModelIndex trackIndex = model()->index(i, 0);
+        auto* track = static_cast<TrackData*>(trackIndex.internalPointer());
+        if (!track)
+            continue;
+        clipRowsInFrameRange(track, frameLo, frameHi, clipRows);
+        for (int clipRow : clipRows) {
+            if (clipRow < 0 || clipRow >= track->clips.size())
+                continue;
+            AbstractClipModel* clip = track->clips.at(clipRow);
+            if (!clip || (m_interactiveDrag && clip == m_dragClip))
+                continue;
+
+            const int startX = frameToPoint(clip->start());
+            const int clipWidth = frameToPoint(clip->end() - clip->start() + 1);
+            if (startX + clipWidth <= scrollX || startX >= viewRight)
+                continue;
+            const int paintWidth = qMax(clipWidth, 1);
+            if (clipped && !QRect(startX - scrollX, trackTop, paintWidth, trackHeight).intersects(clipBounds))
+                continue;
+
+            // 与 clipContentBounds 同一套几何，避免再走 visualRect / parent()。
+            m_clipContentRects[clip] = QRect(startX, trackTop + scrollY, paintWidth, trackHeight).adjusted(-4, -4, 44, 4);
+            const QRect clipRect(startX - scrollX, trackTop + clipoffset, clipWidth, trackHeight - clipoffset * 2);
+            clip->paint(painter, clipRect, clip == selectedClip);
         }
     }
 }
@@ -1232,7 +1519,8 @@ void BaseTimelineView::selectionChanged(const QItemSelection &selected, const QI
     } else {
         emit currentClipChanged(nullptr);
     }
-    
+
+    m_staticCacheDirty = true;
     viewport()->update();
 }
 
@@ -1266,9 +1554,8 @@ void BaseTimelineView::wheelEvent(QWheelEvent *event){
         const int newX = qBound(horizontalScrollBar()->minimum(), oldX + deltaX, horizontalScrollBar()->maximum());
 
         if (newX != oldX) {
+            // 滚动条变化会进入 scrollContentsBy，在那里平移缓存。
             horizontalScrollBar()->setValue(newX);
-            syncScrollOffsetFromScrollBars();
-            scheduleRedraw();
             emit scrolled(newX - oldX, 0);
         }
     }
@@ -1277,9 +1564,7 @@ void BaseTimelineView::wheelEvent(QWheelEvent *event){
 
 void BaseTimelineView::onFrameChanged(qint64 frame)
 {
-    // qDebug() << "Frame changed:" << frame;
-    // 不再调用 movePlayheadToFrame，直接更新视图
-    viewport()->update();
+    onPlayheadMoved(static_cast<int>(frame));
 }
 
 void BaseTimelineView::onPlaybackStateChanged(bool isPlaying)

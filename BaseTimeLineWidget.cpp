@@ -102,38 +102,37 @@ private:
 
         // 2) 数据变化：按需刷新（避免 TrackList 全量）
         connect(m_model, &QAbstractItemModel::dataChanged,
-                this, [this, refreshTimeline](const QModelIndex& topLeft,
-                                             const QModelIndex& bottomRight,
-                                             const QList<int>& roles) {
-                    Q_UNUSED(bottomRight);
-                    refreshTimeline();
-
-                    if (!m_tracklist) {
-                        return;
-                    }
-
-                    // Clip 层的数据变化不影响 TrackList 的显示
+                this, [this](const QModelIndex& topLeft,
+                             const QModelIndex& bottomRight,
+                             const QList<int>& roles) {
                     if (topLeft.parent().isValid()) {
+                        if (!m_view)
+                            return;
+                        for (int row = topLeft.row(); row <= bottomRight.row(); ++row)
+                            m_view->updateClipGeometry(topLeft.sibling(row, topLeft.column()));
                         return;
                     }
 
-                    // Track 层数据变化（名称/类型/tooltip 等）：轻量重绘即可
+                    if (!m_tracklist)
+                        return;
                     const bool rolesUnknown = roles.isEmpty();
                     const bool affectsTrackName = rolesUnknown || roles.contains(QtTimeline::TrackNameRole) || roles.contains(QtTimeline::TrackTypeRole);
-                    if (affectsTrackName) {
+                    if (affectsTrackName)
                         m_tracklist->viewport()->update();
-                    }
                 });
 
-        // 3) 聚合信号：不适合用 dataChanged 表达，保留
-        connect(m_model, &BaseTimeLineModel::S_LengthChanged,       this, refreshTimeline);
+        // 总长度只影响滚动范围。片段像素由 dataChanged 局部刷新。
+        connect(m_model, &BaseTimeLineModel::S_LengthChanged, this, [this](qint64) {
+            if (m_view)
+                m_view->updateScrollBars();
+        });
 
         connect(m_model, &BaseTimeLineModel::S_playheadMoved,
-                this, [this, refreshTimeline](int) {
-                    refreshTimeline();
-                    if (m_tracklist) {
-                        m_tracklist->viewport()->update();
-                    }
+                this, [this](int frame) {
+                    if (m_view)
+                        m_view->onPlayheadMoved(frame);
+                    if (m_tracklist)
+                        m_tracklist->updatePlayheadHeader();
                 });
     }
 

@@ -43,6 +43,8 @@ public:
      * 更新滚动条
      */
     virtual void updateScrollBars();
+    // 只刷新顶部时间文字，不重画轨道行
+    void updatePlayheadHeader();
     /**
      * 获取可视区域
      * @param QModelIndex index 索引

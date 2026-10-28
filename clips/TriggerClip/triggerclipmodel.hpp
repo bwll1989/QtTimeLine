@@ -12,8 +12,8 @@ TriggerClipModel(int start): AbstractClipModel(start, "Trigger"),
     EMBEDWIDGET = false;
     SHOWBORDER = true;
    
-    // 片段正常颜色
-    ClipColor=QColor("#CC0033");
+    // 片段正常颜色。写在片段自己身上，避免改掉全局 ClipColor。
+    setColor(QColor("#CC0033"));
     qDebug()<<"trigger clip model created"<<m_id;
 }
 virtual ~TriggerClipModel() override =default;
@@ -68,27 +68,29 @@ void paint(QPainter* painter, const QRect& rect, bool selected) const override{
     painter->save();  // 保存状态
     painter->setRenderHint(QPainter::Antialiasing);
     // 设置画笔和画刷
+    const QColor fill = color();
     if (selected) {
-        painter->setBrush(ClipColor.darker(150));
+        painter->setBrush(fill.darker(150));
     } else {
-        painter->setBrush(ClipColor);
+        painter->setBrush(fill);
     }
 
     // 设置细边框
     if(SHOWBORDER){
         painter->setPen(QPen(ClipBorderColour, 1));
     }else{
-        painter->setPen(QPen(ClipColor, 0));
+        painter->setPen(QPen(fill, 0));
     }
     // 绘制文本
     auto textRect = rect.adjusted(4,10,40,-10);
     painter->drawRect(textRect);
-    painter->setPen(Qt::white);
+    painter->setPen(fill.lightness() > 160 ? QColor(30, 30, 30) : Qt::white);
     QFont font = painter->font();
     font.setPointSize(8);  // 设置较小的字体大小
     painter->setFont(font);
 
-    painter->drawText(textRect, Qt::AlignCenter, "Trigger");
+    const QString text = painter->fontMetrics().elidedText(displayText(), Qt::ElideRight, qMax(0, textRect.width() - 4));
+    painter->drawText(textRect, Qt::AlignCenter, text);
     // 绘制左侧竖线
     painter->setPen(QPen(ClipBorderColour, 4));  // 稍微粗一点的线
     painter->drawLine(rect.left() + 2, rect.top(),

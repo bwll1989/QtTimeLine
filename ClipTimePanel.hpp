@@ -5,10 +5,10 @@
 
 #pragma once
 #include "TimelineExports.hpp"
+#include "IntDragValueWidget/IntDragValueWidget.hpp"
 #include <QGroupBox>
 #include <QGridLayout>
 #include <QLabel>
-#include <QSpinBox>
 #include <QLineEdit>
 #include <QCheckBox>
 #include "TimeCodeDefines.h"
@@ -20,13 +20,13 @@ public:
     explicit ClipTimePanel(AbstractClipModel* owner, QWidget* parent = nullptr);
     void initSignalConnections();
 public:
-    QSpinBox*   m_startFrameSpinBox {nullptr};
+    IntDragValueWidget* m_startFrameSpinBox {nullptr};
     QTimeEdit*  m_startTimeCodeLineEdit {nullptr};
 
-    QSpinBox*   m_positionFrameSpinBox {nullptr};
+    IntDragValueWidget* m_positionFrameSpinBox {nullptr};
     QTimeEdit*  m_positionTimeLineEdit {nullptr};
 
-    QSpinBox*   m_endFrameSpinBox {nullptr};
+    IntDragValueWidget* m_endFrameSpinBox {nullptr};
     QTimeEdit*  m_endTimeCodeLineEdit {nullptr};
 
 Q_SIGNALS:
@@ -40,6 +40,10 @@ public Q_SLOTS:
     void updateEndTimeCode(const QTime& tc);
     void updatePositionFrame(int frames);
     void updatePositionTimeCode(const QTime& tc);
+private:
+    int clampStartFrame(int frames) const;
+    int clampEndFrame(int frames) const;
+    void refreshFrameRanges();
 private:
     AbstractClipModel* m_owner {nullptr};
     // 本地控件（不强制写回到 AbstractClipModel 的成员，避免循环依赖）

@@ -25,6 +25,9 @@ struct TrackData {
     // 修改前: QVector<std::unique_ptr<AbstractClipModel>> clips;
     // 修改后: 使用 QList 替代 QVector
     QList<AbstractClipModel*> clips;
+    // 按 start 排序的片段下标。只用于视口裁剪，不改变 clips 的绘制顺序。
+    QList<int> clipsByStart;
+    int maxClipSpan = 0;
     QJsonObject save() const
 {
     QJsonObject trackJson;
@@ -199,6 +202,11 @@ public slots:
     //移动轨道槽函数
     virtual void onMoveTrack(int sourceRow, int targetRow);
 
+    // 拖拽期间只改片段几何，松手后再排序、重算长度并发出 dataChanged
+    void beginInteractiveGeometryChange(AbstractClipModel* clip);
+    void endInteractiveGeometryChange();
+    void syncInteractiveClipOrder();
+
 protected:
     /**
      * @brief 通过 clip 指针反查其在模型中的索引
@@ -208,6 +216,23 @@ protected:
      * 以便在监听到 clip 的信号后发出 dataChanged。
      */
     QModelIndex indexForClip(AbstractClipModel* clip) const;
+
+    struct ClipLocation {
+        int trackRow = -1;
+        int clipRow = -1;
+        int end = 0;
+    };
+
+    // 增删轨道或片段后重建，供 parent/data/indexForClip 做 O(1) 查询
+    void rebuildIndex();
+    void rebuildTrackClipOrder(TrackData* track);
+    void noteClipGeometryChanged(AbstractClipModel* clip);
+    void watchClip(AbstractClipModel* clip);
+    void queueClipGeometryNotify(AbstractClipModel* clip);
+    void flushClipGeometryNotify();
+    // 新终点超过当前总长时直接更新。只有原来的最大终点变小才重扫。
+    void applyLengthChange(int oldEnd, int newEnd);
+    bool isTrackPointer(void* ptr) const;
 
     // 查找片段所在轨道
     TrackData* findParentTrackOfClip(AbstractClipModel* clip) const ;
@@ -226,7 +251,14 @@ protected:
     // 修改前: QVector<std::unique_ptr<TrackData>> m_tracks;
     // 修改后: 使用 QList 替代 QVector
     QList<TrackData*> m_tracks;
-    
+    std::unordered_map<AbstractClipModel*, ClipLocation> m_clipLocation;
+    std::unordered_set<TrackData*> m_trackSet;
+    bool m_deferGeometryNotify = false;
+    AbstractClipModel* m_interactiveClip = nullptr;
+    int m_interactiveOriginalEnd = 0;
+    bool m_geometryNotifyQueued = false;
+    QList<AbstractClipModel*> m_pendingGeometryClips;
+
     qint64 m_currentFrame = 0; // 当前帧
 
     qint64 m_lengthFrame = 0; // 总帧数

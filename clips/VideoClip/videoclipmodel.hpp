@@ -13,8 +13,8 @@ VideoClipModel(int start): AbstractClipModel(start, "Video"),
     EMBEDWIDGET = true;
     SHOWBORDER = true;
    
-    // 片段正常颜色
-    ClipColor=QColor("#CC0033");
+    // 片段正常颜色。写在片段自己身上，避免改掉全局 ClipColor。
+    setColor(QColor("#CC0033"));
     qDebug()<<"VideoClipModel created"<<m_id;
 }
 virtual ~VideoClipModel() override =default;

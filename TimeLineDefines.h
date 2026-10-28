@@ -42,6 +42,8 @@ Q_NAMESPACE_EXPORT(NODE_TIMELINE_PUBLIC)
         TimelineLengthRole, // 时间轴长度
         TimeCodeTypeRole, //时间码格式
         TimelineModelAliasRole, // 时间线模型别名（用于 OSC 地址前缀）
+        ClipColorRole, // 片段颜色
+        ClipNoteRole, // 片段备注名
     };
     Q_ENUM_NS(TimelineRoles)
 

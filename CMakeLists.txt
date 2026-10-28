@@ -58,6 +58,7 @@ set(INCLUDES
         OSCMessage.h
         DefaultTimeLineToolBar.h
         ClipTimePanel.hpp
+        ClipAppearancePanel.hpp
 )
 # 源文件列表
 set(SOURCES
@@ -71,6 +72,7 @@ set(SOURCES
         DefaultTimeLineToolBar.cpp
         resources.qrc
         ClipTimePanel.cpp
+        ClipAppearancePanel.cpp
 )
 set(QRC_FILES
         resources.qrc
@@ -104,6 +106,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/clips/VideoClip
 )
 
+# 开始帧/结束帧使用宿主工程的 IntDragValueWidget（GUIElements）
+set(FLOW_GUI_ELEMENTS_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Common/GUI/Elements" CACHE PATH "GUIElements headers")
+set(FLOW_GUI_ELEMENTS_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../../build/bin/GUIElements.lib" CACHE FILEPATH "GUIElements import library")
+if(NOT EXISTS "${FLOW_GUI_ELEMENTS_LIB}")
+    message(FATAL_ERROR "GUIElements.lib not found: ${FLOW_GUI_ELEMENTS_LIB}")
+endif()
+
 # 链接 Qt 库
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
@@ -112,6 +121,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::OpenGL
     Qt${QT_VERSION_MAJOR}::OpenGLWidgets
     Qt${QT_VERSION_MAJOR}::Gui
+)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC "${FLOW_GUI_ELEMENTS_LIB}")
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    "${FLOW_GUI_ELEMENTS_INCLUDE}"
 )
 
 # 如果是 Qt6，添加额外的 OpenGL 依赖

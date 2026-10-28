@@ -15,8 +15,8 @@ ControlClipModel(int start): AbstractClipModel(start, "Control"),
     EMBEDWIDGET = false;
     SHOWBORDER = true;
    
-    // 片段正常颜色
-    ClipColor=QColor("#6a2c70");
+    // 片段正常颜色。写在片段自己身上，避免改掉全局 ClipColor。
+    setColor(QColor("#6a2c70"));
 
 }
 ~ControlClipModel() override =default;

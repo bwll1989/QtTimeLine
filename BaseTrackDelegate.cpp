@@ -1,4 +1,5 @@
 #include "BaseTrackDelegate.h"
+#include <QTimer>
 
 BaseTrackDelegate::BaseTrackDelegate(QObject *parent): QAbstractItemDelegate{parent}{};
 
@@ -53,6 +54,19 @@ QWidget *BaseTrackDelegate::createEditor(QWidget *parent, const QStyleOptionView
     });
 
     layout->addWidget(lineEdit);
+    editor->setFocusProxy(lineEdit);
+    QTimer::singleShot(0, lineEdit, [lineEdit]() {
+        lineEdit->setFocus();
+        lineEdit->selectAll();
+    });
+
+    auto* self = const_cast<BaseTrackDelegate*>(this);
+    connect(lineEdit, &QLineEdit::editingFinished, editor, [self, editor]() {
+        if (editor->property("qtl_closing").toBool())
+            return;
+        editor->setProperty("qtl_closing", true);
+        emit self->closeEditor(editor, QAbstractItemDelegate::NoHint);
+    });
 
     // 移动轨道按钮
     QLabel* moveLabel = new QLabel();

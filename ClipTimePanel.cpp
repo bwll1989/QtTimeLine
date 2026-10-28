@@ -19,7 +19,7 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
 
     // 开始帧显示
     auto startLabel = new QLabel(tr("开始帧:"), this);
-    m_startFrameSpinBox = new QSpinBox(this);
+    m_startFrameSpinBox = new IntDragValueWidget(this);
     m_startFrameSpinBox->setRange(0, 9999999);
     // m_startFrameSpinBox->setValue(m_owner->start());
     m_startTimeCodeLineEdit = new QTimeEdit(this);
@@ -30,7 +30,7 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
 
     // 片段总长显示（绝对时间：毫秒）
     auto lengthLabel = new QLabel(tr("片段位置:"), this);
-    m_positionFrameSpinBox = new QSpinBox(this);
+    m_positionFrameSpinBox = new IntDragValueWidget(this);
     m_positionFrameSpinBox->setRange(0, 9999999);
     m_positionTimeLineEdit = new QTimeEdit(this);
     m_positionTimeLineEdit->setDisplayFormat("hh:mm:ss:zzz");
@@ -40,7 +40,7 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
 
     // 结束帧显示（绝对时间：毫秒）
     auto endLabel = new QLabel(tr("结束帧:"), this);
-    m_endFrameSpinBox = new QSpinBox(this);
+    m_endFrameSpinBox = new IntDragValueWidget(this);
     m_endFrameSpinBox->setRange(0, 9999999);
     m_endTimeCodeLineEdit = new QTimeEdit(this);
     m_endTimeCodeLineEdit->setDisplayFormat("hh:mm:ss:zzz");
@@ -54,11 +54,11 @@ ClipTimePanel::ClipTimePanel(AbstractClipModel* owner, QWidget* parent)
     initSignalConnections();
 }
 void ClipTimePanel::initSignalConnections() {
-    connect(m_startFrameSpinBox,&QSpinBox::valueChanged,this,&ClipTimePanel::updateStartFrame);
+    connect(m_startFrameSpinBox,&IntDragValueWidget::valueChanged,this,&ClipTimePanel::updateStartFrame);
     connect(m_startTimeCodeLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updateStartTimeCode);
-    connect(m_endFrameSpinBox,&QSpinBox::valueChanged,this,&ClipTimePanel::updateEndFrame);
+    connect(m_endFrameSpinBox,&IntDragValueWidget::valueChanged,this,&ClipTimePanel::updateEndFrame);
     connect(m_endTimeCodeLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updateEndTimeCode);
-    connect(m_positionFrameSpinBox,&QSpinBox::valueChanged,this,&ClipTimePanel::updatePositionFrame);
+    connect(m_positionFrameSpinBox,&IntDragValueWidget::valueChanged,this,&ClipTimePanel::updatePositionFrame);
     connect(m_positionTimeLineEdit,&QTimeEdit::timeChanged,this,&ClipTimePanel::updatePositionTimeCode);
     connect(m_owner, &AbstractClipModel::timelinePositionChanged, this, [this](int frames){
         updateStartFrame(frames);
@@ -70,11 +70,44 @@ void ClipTimePanel::initSignalConnections() {
 
 }
 
+int ClipTimePanel::clampStartFrame(int frames) const
+{
+    if (!m_owner || !m_owner->isResizable())
+        return frames;
+    if (frames < 0)
+        frames = 0;
+    const int maxStart = m_owner->end() - 1;
+    if (frames > maxStart)
+        frames = qMax(0, maxStart);
+    return frames;
+}
+
+int ClipTimePanel::clampEndFrame(int frames) const
+{
+    if (!m_owner || !m_owner->isResizable())
+        return frames;
+    const int minEnd = m_owner->start() + 1;
+    if (frames < minEnd)
+        frames = minEnd;
+    return frames;
+}
+
+void ClipTimePanel::refreshFrameRanges()
+{
+    if (!m_owner || !m_owner->isResizable() || !m_startFrameSpinBox || !m_endFrameSpinBox)
+        return;
+    QSignalBlocker blockStart(m_startFrameSpinBox);
+    QSignalBlocker blockEnd(m_endFrameSpinBox);
+    m_startFrameSpinBox->setRange(0, qMax(0, m_owner->end() - 1));
+    m_endFrameSpinBox->setRange(m_owner->start() + 1, 9999999);
+}
+
 void ClipTimePanel::updateStartFrame(int frames) {
     if (!m_owner) {
         qDebug() << "m_owner is nullptr";
         return;
     }
+    frames = clampStartFrame(frames);
     QSignalBlocker b1(m_startFrameSpinBox);
     QSignalBlocker b2(m_startTimeCodeLineEdit);
     m_startFrameSpinBox->setValue(frames);
@@ -83,6 +116,7 @@ void ClipTimePanel::updateStartFrame(int frames) {
     m_startTimeCodeLineEdit->setTime(time);
 
     m_owner->setStart(frames);
+    refreshFrameRanges();
 }
 
 void ClipTimePanel::updateStartTimeCode(const QTime& tc) {
@@ -94,14 +128,19 @@ void ClipTimePanel::updateStartTimeCode(const QTime& tc) {
     QSignalBlocker b2(m_startTimeCodeLineEdit);
     TimeCodeFrame timecode = qtime_to_timecode_frame(tc, m_owner->getTimeCodeType());
     int newStart = static_cast<int>(timecode_frame_to_frames(timecode, m_owner->getTimeCodeType()));
+    newStart = clampStartFrame(newStart);
     m_startFrameSpinBox->setValue(newStart);
+    const auto clampedTc = frames_to_timecode_frame(newStart, m_owner->getTimeCodeType());
+    m_startTimeCodeLineEdit->setTime(timecode_frame_to_qtime(clampedTc, m_owner->getTimeCodeType()));
     m_owner->setStart(newStart);
+    refreshFrameRanges();
 
 }
 void ClipTimePanel::updateEndFrame(int frames) {
     if (!m_owner) {
         return;
     }
+    frames = clampEndFrame(frames);
     QSignalBlocker b1(m_endFrameSpinBox);
     QSignalBlocker b2(m_endTimeCodeLineEdit);
     m_endFrameSpinBox->setValue(frames);
@@ -109,6 +148,7 @@ void ClipTimePanel::updateEndFrame(int frames) {
     QTime time=timecode_frame_to_qtime(tc, m_owner->getTimeCodeType());
     m_endTimeCodeLineEdit->setTime(time);
     m_owner->setEnd(frames);
+    refreshFrameRanges();
 }
 void ClipTimePanel::updateEndTimeCode(const QTime& tc) {
     if (!m_owner) {
@@ -119,8 +159,12 @@ void ClipTimePanel::updateEndTimeCode(const QTime& tc) {
     QSignalBlocker b2(m_endTimeCodeLineEdit);
     TimeCodeFrame timecode = qtime_to_timecode_frame(tc, m_owner->getTimeCodeType());
     int newEnd = static_cast<int>(timecode_frame_to_frames(timecode, m_owner->getTimeCodeType()));
+    newEnd = clampEndFrame(newEnd);
     m_endFrameSpinBox->setValue(newEnd);
+    const auto clampedTc = frames_to_timecode_frame(newEnd, m_owner->getTimeCodeType());
+    m_endTimeCodeLineEdit->setTime(timecode_frame_to_qtime(clampedTc, m_owner->getTimeCodeType()));
     m_owner->setEnd(newEnd);
+    refreshFrameRanges();
 }
 void ClipTimePanel::updatePositionFrame(int frames) {
     if (!m_owner) {

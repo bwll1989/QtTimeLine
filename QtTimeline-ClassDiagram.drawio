@@ -1,0 +1,79 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
+  <diagram id="qt_timeline_class" name="QtTimeline 类图">
+    <mxGraphModel dx="3490" dy="2473" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pl1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;container=1;rounded=1;strokeWidth=1;" value="BasePluginLoader&#xa;- createModelForType(type,start)：按类型创建片段模型&#xa;- getAvailableTypes()：获取可用轨道类型" vertex="1">
+          <mxGeometry height="100" width="280" x="60" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;container=1;rounded=1;strokeWidth=1;" value="BaseTimeLineModel : QAbstractItemModel&#xa;- m_tracks: QVector&lt;TrackData*&gt;&#xa;- m_pluginLoader: BasePluginLoader*&#xa;- 信号：S_playheadMoved(int)，S_LengthChanged(qint64)&#xa;- index/parent/rowCount/columnCount&#xa;- data/setData（发出 dataChanged）&#xa;- onAddTrack/onDeleteTrack/onMoveTrack&#xa;- onAddClip/onDeleteClip（对子项发 rows*，带 parent）&#xa;- onSetPlayheadPos&#xa;- onUpdateTimeLineLength&#xa;- indexForClip/findParentTrackOfClip" vertex="1">
+          <mxGeometry height="220" width="420" x="60" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="td1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="TrackData&#xa;- type: QString&#xa;- name: QString&#xa;- clips: QVector&lt;AbstractClipModel*&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="-110" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="AbstractClipModel (abstract)&#xa;- start()/end()/length()&#xa;- setStart/setEnd&#xa;- isResizable()/setResizable&#xa;- isEmbedWidget()/setEmbedWidget&#xa;- Signals: timelinePositionChanged(int), lengthChanged(int)" vertex="1">
+          <mxGeometry height="160" width="420" x="250" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="w1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="BaseTimelineWidget : QWidget&#xa;- view: BaseTimelineView*&#xa;- tracklist: BaseTracklistView*&#xa;- m_sharedSelectionModel: QItemSelectionModel*&#xa;- m_bindings: TimelineBindingsController*" vertex="1">
+          <mxGeometry height="140" width="420" x="540" y="-110" as="geometry" />
+        </mxCell>
+        <mxCell id="bc1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="TimelineBindingsController : QObject&#xa;- 订阅模型：modelReset/rows*/dataChanged&#xa;- 订阅聚合信号：S_playheadMoved/S_LengthChanged&#xa;- 刷新策略：按层级决定 Timeline/TrackList 的刷新粒度&#xa;- 同步滚动条、注入共享 selectionModel" vertex="1">
+          <mxGeometry height="160" width="420" x="550" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="sm1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="QItemSelectionModel&#xa;- 与两视图共享当前选择" vertex="1">
+          <mxGeometry height="90" width="260" x="980" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="v1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="BaseTimelineView : QAbstractItemView&#xa;- Model: BaseTimeLineModel*&#xa;- scheduleRedraw()/performRedraw()：合并重绘&#xa;- updateScrollBars()&#xa;- setData/onAddClip/onDeleteClip/onSetPlayheadPos（调用模型）" vertex="1">
+          <mxGeometry height="160" width="420" x="540" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="tl1" parent="1" style="swimlane;fontStyle=1;align=left;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;rounded=1;" value="BaseTracklistView : QAbstractItemView&#xa;- Model: BaseTimeLineModel*&#xa;- onUpdateViewport()/ensureVisiblePersistentEditors()：可视范围编辑器管理&#xa;- onAddTrack/onDeleteTrack（调用模型）" vertex="1">
+          <mxGeometry height="150" width="420" x="980" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pl_m" edge="1" parent="1" source="pl1" style="endArrow=block;strokeWidth=1;" target="m1" value="创建片段模型 / 加载插件">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_m_td" edge="1" parent="1" source="m1" style="startArrow=diamond;startFill=1;endArrow=block;strokeWidth=1;" target="td1" value="包含（轨道）">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_td_c" edge="1" parent="1" source="td1" style="startArrow=diamond;startFill=1;endArrow=block;strokeWidth=1;" target="c1" value="包含（片段）">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_w_v" edge="1" parent="1" source="w1" style="startArrow=diamond;startFill=1;endArrow=block;" target="v1" value="包含">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_w_tl" edge="1" parent="1" source="w1" style="startArrow=diamond;startFill=1;endArrow=block;" target="tl1" value="包含">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_w_bc" edge="1" parent="1" source="w1" style="startArrow=diamond;startFill=1;endArrow=block;" target="bc1" value="包含">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_w_sm" edge="1" parent="1" source="w1" style="startArrow=diamond;startFill=1;endArrow=block;" target="sm1" value="包含">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bc_m" edge="1" parent="1" source="bc1" style="endArrow=open;dashed=1;strokeWidth=1;" target="m1" value="订阅：modelReset/rows*/dataChanged&#xa;+ S_playheadMoved/S_LengthChanged">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bc_sm" edge="1" parent="1" source="bc1" style="endArrow=open;dashed=1;" target="sm1" value="注入到两个视图">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bc_v" edge="1" parent="1" source="bc1" style="endArrow=open;dashed=1;" target="v1" value="绑定信号 / 同步垂直滚动">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bc_tl" edge="1" parent="1" source="bc1" style="endArrow=open;dashed=1;" target="tl1" value="绑定信号 / 同步垂直滚动">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_v_m" edge="1" parent="1" source="v1" style="endArrow=block;strokeWidth=1;" target="m1" value="调用：setData/onAddClip/onDeleteClip/onSetPlayheadPos">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tl_m" edge="1" parent="1" source="tl1" style="endArrow=block;strokeWidth=1;" target="m1" value="调用：onAddTrack/onDeleteTrack">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_c_m" edge="1" parent="1" source="c1" style="endArrow=open;dashed=1;strokeWidth=1;" target="m1" value="信号：timelinePositionChanged/lengthChanged&#xa;→ 桥接为 dataChanged">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
