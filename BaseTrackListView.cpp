@@ -61,6 +61,12 @@ void BaseTracklistView::setTrackHoverColor(const QColor &color)
     viewport()->update();
 }
 
+void BaseTracklistView::setTrackTitleColor(const QColor &color)
+{
+    m_trackTitleColor = color;
+    viewport()->update();
+}
+
 /**
  * @brief 删除轨道
  */
@@ -510,7 +516,7 @@ void BaseTracklistView::paintEvent(QPaintEvent *event) {
         painter.drawRect(rowRect);
 
         painter.save();
-        painter.setPen(Qt::white);
+        painter.setPen(m_trackTitleColor);
         const QRect textRect = rowRect.adjusted(8, 0, -28, 0);
         painter.drawText(textRect, Qt::AlignCenter,
                          trackIndex.data(TimelineRoles::TrackNameRole).toString());
@@ -540,7 +546,7 @@ void BaseTracklistView::drawTitle(QPainter *painter)
     painter->drawRect(rect);
 
     if (Model) {
-        painter->setPen(fontColor);
+        painter->setPen(m_trackTitleColor);
         QFont font;
         font.setPixelSize(fontSize);
         painter->setFont(font);

@@ -248,6 +248,7 @@ BaseTracklistView {
     qproperty-trackBgColor: #1e1d23;
     qproperty-trackSelectedColor: #0078d4;
     qproperty-trackHoverColor: #2a292f;
+    qproperty-trackTitleColor: #FFFFFF;
 }
 
 /* 注意：由于使用了自定义绘制和属性，标准的 ::item 伪状态可能部分无效，

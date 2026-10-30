@@ -23,6 +23,7 @@ class NODE_TIMELINE_PUBLIC BaseTracklistView : public QAbstractItemView
     Q_PROPERTY(QColor trackSelectedColor READ getTrackSelectedColor WRITE setTrackSelectedColor)
     Q_PROPERTY(QColor trackHoverColor READ getTrackHoverColor WRITE setTrackHoverColor)
     Q_PROPERTY(QColor trackBgColor READ trackBgColor WRITE setTrackBgColor)
+    Q_PROPERTY(QColor trackTitleColor READ getTrackTitleColor WRITE setTrackTitleColor)
 public:
     explicit BaseTracklistView(BaseTimeLineModel *viemModel, QWidget *parent = nullptr);
 
@@ -37,6 +38,9 @@ public:
     
     QColor trackBgColor() const { return m_trackBgColor; }
     void setTrackBgColor(const QColor& color){ m_trackBgColor=color;}
+
+    QColor getTrackTitleColor() const { return m_trackTitleColor; }
+    void setTrackTitleColor(const QColor &color);
 
     ~BaseTracklistView() override=default;
     /**
@@ -220,6 +224,7 @@ protected:
 private:
    // Initialize colors from TimeLineStyle
     QColor m_trackColor = trackColour;
+    QColor m_trackTitleColor = trackTitleColor;
     QColor m_trackSelectedColor = trackSelectedColour;
     QColor m_trackHoverColor = trackHoverColour;
     QColor m_trackBgColor       = bgColour;

@@ -63,6 +63,8 @@ inline int clipround = 0; //clip圆角
 
 inline QColor bgColour = QColor(53, 53, 53);  // 深灰色背景
 
+inline QColor fontColour = QColor(255,255,255);  // 深灰色背景
+
 inline QColor fillColour = QColor("#202020"); //填充颜色
 
 inline QColor seperatorColour = QColor("#414141"); //时间轴竖直分割线
@@ -75,7 +77,9 @@ inline int baseTimeScale = 10; //基础时间刻度，用于计算缩放
 
 inline int fontSize = 25; //显示时间字体大小
 
-inline QColor fontColor = QColor(206, 91, 87); //字体颜色
+inline QColor fontColor = QColor(206, 91, 87); //时间字体颜色
+
+inline QColor trackTitleColor = QColor(255,255,255); //轨道名文字颜色
 /**
  * 参数说明：timescale初始值（像素/帧）
  * - 语义：当前时间轴上“每帧占据的像素宽度”，单位 px/frame。
